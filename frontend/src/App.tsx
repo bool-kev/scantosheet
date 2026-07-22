@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 
+import { AdminPage } from "./pages/admin-page";
 import { HomePage } from "./pages/home-page";
 import { PreviewPage } from "./pages/preview-page";
 
@@ -8,6 +9,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/documents/:id" element={<PreviewPage />} />
+      <Route path="/admin" element={<AdminPage />} />
     </Routes>
   );
 }

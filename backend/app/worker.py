@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.database import SessionLocal
 from app.logging_config import get_logger
 from app.models import Document, DocumentStatus, Page
-from app.services import ocr, pdf, preprocess, table
+from app.services import excel, ocr, pdf, preprocess, table, webhook
 
 log = get_logger(__name__)
 settings = get_settings()
@@ -65,6 +65,8 @@ def process_document(document_id: int) -> None:
         db.commit()
         log.info("worker.done", document_id=document_id, pages=document.page_count)
 
+        _notify(db, document)
+
     except Exception as exc:  # noqa: BLE001 - top-level pipeline guard
         db.rollback()
         document = db.get(Document, document_id)
@@ -72,9 +74,44 @@ def process_document(document_id: int) -> None:
             document.status = DocumentStatus.ERROR
             document.error_message = str(exc)
             db.commit()
+            _notify(db, document)
         log.error("worker.error", document_id=document_id, error=str(exc), exc_info=True)
     finally:
         db.close()
+
+
+def _notify(db, document: Document) -> None:
+    """Pre-build the spreadsheet and fire the completion webhook, if requested.
+
+    The xlsx is generated *before* notifying so the ``download_url`` in the
+    payload serves the file immediately. Webhook failures are recorded on the
+    document but never fail the job: results stay retrievable over the API.
+    """
+    if not document.callback_url:
+        return
+
+    if document.status is DocumentStatus.DONE:
+        try:
+            document.result_path = str(_export_result(document))
+            db.commit()
+        except Exception as exc:  # noqa: BLE001 - export must not block the callback
+            log.error("worker.export_error", document_id=document.id, error=str(exc))
+
+    error = webhook.deliver(document)
+    document.webhook_error = error
+    db.commit()
+
+
+def _export_result(document: Document) -> Path:
+    """Generate the .xlsx for a finished document and return its path."""
+    grids = [
+        [[str(cell.get("value", "")) for cell in row] for row in json.loads(p.data_json or "[]")]
+        for p in document.pages
+    ]
+    stem = Path(document.filename).stem
+    output_path = settings.results_dir / f"{document.id}_{stem}_extracted.xlsx"
+    excel.export_xlsx(grids, output_path, merge=document.merge_pages)
+    return output_path
 
 
 def _process_page(document: Document, page_number: int, image_path: Path) -> Page:

@@ -14,6 +14,9 @@ services:
       OCR_DPI: ${OCR_DPI:-300}
       MAX_WORKERS: ${MAX_WORKERS:-2}
       ENABLE_PREPROCESSING: ${ENABLE_PREPROCESSING:-true}
+      EXTRACT_TABLES_ONLY: ${EXTRACT_TABLES_ONLY:-true}
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
     volumes:
       - scantosheet-data:/data
     ports:

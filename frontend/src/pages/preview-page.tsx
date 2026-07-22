@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { api } from "../api/client";
+import { ApiError, api } from "../api/client";
 import type { Cell, PageData } from "../api/types";
 import { EditableTable } from "../components/editable-table";
 import { StatusBadge } from "../components/status-badge";
@@ -18,6 +18,7 @@ export function PreviewPage() {
   const [merge, setMerge] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // Sync local editable copy whenever the fetched document changes.
   useEffect(() => {
@@ -26,6 +27,13 @@ export function PreviewPage() {
       setDirty(false);
     }
   }, [doc?.id, doc?.pages]);
+
+  // Seed the export layout from the choice made at upload time.
+  useEffect(() => {
+    if (doc) {
+      setMerge(doc.merge_pages);
+    }
+  }, [doc?.id, doc?.merge_pages]);
 
   if (isLoading) {
     return <p className="p-10 text-center text-slate-400">Chargement…</p>;
@@ -71,6 +79,19 @@ export function PreviewPage() {
     });
   };
 
+  // Downloads go through fetch (not a plain link) so the API key header travels
+  // with the request.
+  const handleDownload = async (fmt: "xlsx" | "csv") => {
+    setDownloadError(null);
+    try {
+      await api.download(doc.id, fmt, fmt === "xlsx" ? merge : false);
+    } catch (err) {
+      setDownloadError(
+        err instanceof ApiError ? err.message : "Échec du téléchargement",
+      );
+    }
+  };
+
   const current = pages[activePage];
 
   return (
@@ -105,21 +126,26 @@ export function PreviewPage() {
           >
             {updateData.isPending ? "Enregistrement…" : "Enregistrer"}
           </button>
-          <a
-            href={api.downloadUrl(doc.id, "xlsx", merge)}
+          <button
+            onClick={() => handleDownload("xlsx")}
             className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
           >
             Excel (.xlsx)
-          </a>
-          <a
-            href={api.downloadUrl(doc.id, "csv")}
+          </button>
+          <button
+            onClick={() => handleDownload("csv")}
             className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
           >
             CSV
-          </a>
+          </button>
         </div>
       </div>
 
+      {downloadError && (
+        <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {downloadError}
+        </p>
+      )}
       {saved && (
         <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
           Modifications enregistrées.

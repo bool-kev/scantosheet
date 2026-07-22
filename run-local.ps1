@@ -22,6 +22,58 @@ $backendDir = Join-Path $root 'backend'
 $frontendDir = Join-Path $root 'frontend'
 $python = Join-Path $backendDir '.venv\Scripts\python.exe'
 
+# --- .env loading -------------------------------------------------------------
+
+function Get-Env([string]$Name) {
+    [Environment]::GetEnvironmentVariable($Name, 'Process')
+}
+
+function Set-Env([string]$Name, [string]$Value) {
+    [Environment]::SetEnvironmentVariable($Name, $Value, 'Process')
+}
+
+function Set-DefaultEnv([string]$Name, [string]$Value) {
+    if ([string]::IsNullOrWhiteSpace((Get-Env $Name))) { Set-Env $Name $Value }
+}
+
+function Import-DotEnv([string]$Path) {
+    <#
+        Parse a KEY=VALUE .env file into the process environment.
+        Blank lines and #-comments are skipped. Surrounding quotes are stripped.
+        Inline comments are NOT stripped, so a value may legitimately contain '#'.
+    #>
+    $names = @()
+    if (-not (Test-Path $Path)) { return $names }
+    foreach ($line in Get-Content $Path) {
+        $trimmed = $line.Trim()
+        if (-not $trimmed -or $trimmed.StartsWith('#')) { continue }
+        $split = $trimmed.IndexOf('=')
+        if ($split -lt 1) { continue }
+        $name = $trimmed.Substring(0, $split).Trim()
+        $value = $trimmed.Substring($split + 1).Trim()
+        if ($value.Length -ge 2) {
+            $first = $value[0]; $last = $value[$value.Length - 1]
+            if (($first -eq '"' -and $last -eq '"') -or ($first -eq "'" -and $last -eq "'")) {
+                $value = $value.Substring(1, $value.Length - 2)
+            }
+        }
+        if ($name -match '^[A-Za-z_][A-Za-z0-9_]*$') {
+            Set-Env $name $value
+            $names += $name
+        }
+    }
+    return $names
+}
+
+$envFile = Join-Path $root '.env'
+$loaded = Import-DotEnv $envFile
+if ($loaded.Count -gt 0) {
+    # Names only — never echo values, ADMIN_API_KEY is a secret.
+    Write-Host ".env loaded  : $($loaded -join ', ')"
+} else {
+    Write-Host ".env         : not found, using built-in defaults"
+}
+
 # --- Preflight ---------------------------------------------------------------
 if (-not (Test-Path $python)) {
     Write-Error "Backend venv not found at $python. Create it first (see README)."
@@ -60,16 +112,33 @@ if (-not $tessdata) {
     $tessdata = $candidates[1]
 }
 
-# Child processes inherit these environment variables.
-$env:TESSDATA_PREFIX = $tessdata
-$env:DATA_DIR        = Join-Path $root 'data'
-$env:CORS_ORIGINS    = 'http://localhost:5173'
-$env:TESSERACT_LANG  = 'fra'
-$env:VITE_API_URL    = 'http://localhost:8000'
+# Child processes inherit these. Values already provided by .env win, except
+# where they cannot possibly work on this host (see DATA_DIR below).
+Set-DefaultEnv 'TESSDATA_PREFIX' $tessdata
+Set-DefaultEnv 'CORS_ORIGINS'    'http://localhost:5173'
+Set-DefaultEnv 'TESSERACT_LANG'  'fra'
+Set-DefaultEnv 'VITE_API_URL'    'http://localhost:8000'
 
-Write-Host "Poppler bin : $popplerBin"
-Write-Host "TESSDATA    : $tessdata"
-Write-Host "DATA_DIR    : $env:DATA_DIR"
+# .env ships DATA_DIR=/data for the Docker image. That POSIX path is meaningless
+# here, so anything that is not a Windows path falls back to .\data.
+$dataDir = Get-Env 'DATA_DIR'
+if ([string]::IsNullOrWhiteSpace($dataDir) -or $dataDir -notmatch '^([A-Za-z]:|\.)') {
+    if (-not [string]::IsNullOrWhiteSpace($dataDir)) {
+        Write-Warning "DATA_DIR='$dataDir' is a container path; using the local .\data folder instead."
+    }
+    Set-Env 'DATA_DIR' (Join-Path $root 'data')
+}
+
+Write-Host "Poppler bin  : $popplerBin"
+Write-Host "TESSDATA     : $(Get-Env 'TESSDATA_PREFIX')"
+Write-Host "DATA_DIR     : $(Get-Env 'DATA_DIR')"
+Write-Host "AUTH_ENABLED : $(Get-Env 'AUTH_ENABLED')  (imports need a key when true)"
+
+if ([string]::IsNullOrWhiteSpace((Get-Env 'ADMIN_API_KEY'))) {
+    Write-Warning "ADMIN_API_KEY is empty - /api/admin will answer 503 and you cannot manage keys."
+} else {
+    Write-Host "ADMIN_API_KEY: configured"
+}
 
 # --- Launch both servers as children of this console -------------------------
 $procs = @()

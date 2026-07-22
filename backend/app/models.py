@@ -24,6 +24,38 @@ class DocumentStatus(str, enum.Enum):
     ERROR = "error"
 
 
+class ApiKeyRole(str, enum.Enum):
+    """Privilege level granted by an API key."""
+
+    ADMIN = "admin"
+    USER = "user"
+
+
+class ApiKey(Base):
+    """A hashed API key issued by an administrator.
+
+    The plaintext key is shown once at creation and never stored: only its
+    SHA-256 digest is persisted. ``prefix`` is the public, non-secret part used
+    to look the key up and to display it in listings.
+    """
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    label: Mapped[str] = mapped_column(String(128), nullable=False)
+    prefix: Mapped[str] = mapped_column(String(16), unique=True, index=True, nullable=False)
+    key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    role: Mapped[ApiKeyRole] = mapped_column(
+        Enum(ApiKeyRole), default=ApiKeyRole.USER, nullable=False
+    )
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    documents: Mapped[list[Document]] = relationship(back_populates="owner")
+
+
 class Document(Base):
     """An uploaded PDF and its processing metadata."""
 
@@ -38,13 +70,23 @@ class Document(Base):
     page_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     language: Mapped[str] = mapped_column(String(32), default="fra", nullable=False)
     preprocessing: Mapped[bool] = mapped_column(default=True, nullable=False)
+    # Export layout: all pages in one sheet, instead of one sheet per page.
+    merge_pages: Mapped[bool] = mapped_column(default=False, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     result_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    # Optional URL notified once processing completes, instead of polling.
+    callback_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    webhook_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Owning API key. NULL for documents created while auth was disabled.
+    api_key_id: Mapped[int | None] = mapped_column(
+        ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
     )
 
+    owner: Mapped[ApiKey | None] = relationship(back_populates="documents")
     pages: Mapped[list[Page]] = relationship(
         back_populates="document",
         cascade="all, delete-orphan",

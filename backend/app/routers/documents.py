@@ -35,6 +35,7 @@ from app.schemas import (
     PageData,
     PreviewResponse,
 )
+from app.security import Principal, resolve_principal
 from app.services import excel
 from app.worker import process_document
 
@@ -71,6 +72,22 @@ async def upload_document(
     file: UploadFile = File(..., description="PDF file to process"),
     language: str = Form("fra", description="Tesseract language, e.g. 'fra' or 'fra+eng'"),
     preprocessing: bool = Form(True, description="Enable image preprocessing"),
+    merge_pages: bool = Form(
+        False,
+        description=(
+            "Export all pages into a single sheet instead of one sheet per "
+            "page. Becomes the document's default export layout."
+        ),
+    ),
+    callback_url: str | None = Form(
+        None,
+        description=(
+            "Optional http(s) URL notified once processing completes, so API "
+            "clients do not have to poll. The payload carries a direct link to "
+            "the generated spreadsheet."
+        ),
+    ),
+    principal: Principal = Depends(resolve_principal),
     db: Session = Depends(get_db),
 ) -> DocumentSummary:
     """Upload a PDF, validate it, persist it and queue OCR processing.
@@ -79,7 +96,13 @@ async def upload_document(
     sanitized unique name, creates a ``queued`` document row and schedules the
     OCR pipeline as a background task.
     """
-    from app.services import pdf  # local import to keep router import light
+    from app.services import pdf, webhook  # local import to keep router import light
+
+    if callback_url and not webhook.is_valid_callback_url(callback_url):
+        raise HTTPException(
+            status_code=400,
+            detail="callback_url must be an absolute http(s) URL",
+        )
 
     content = await file.read()
 
@@ -112,6 +135,9 @@ async def upload_document(
         page_count=page_count,
         language=language,
         preprocessing=preprocessing,
+        merge_pages=merge_pages,
+        api_key_id=principal.api_key_id,
+        callback_url=callback_url,
     )
     db.add(document)
     db.commit()
@@ -127,16 +153,21 @@ async def upload_document(
 async def list_documents(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    principal: Principal = Depends(resolve_principal),
     db: Session = Depends(get_db),
 ) -> DocumentList:
-    """List documents, newest first, paginated."""
-    total = db.scalar(select(func.count()).select_from(Document)) or 0
-    stmt = (
-        select(Document)
-        .order_by(Document.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
+    """List documents, newest first, paginated.
+
+    A non-admin key only sees the documents it uploaded.
+    """
+    count_stmt = select(func.count()).select_from(Document)
+    stmt = select(Document).order_by(Document.created_at.desc())
+    if principal.scopes_documents:
+        count_stmt = count_stmt.where(Document.api_key_id == principal.api_key_id)
+        stmt = stmt.where(Document.api_key_id == principal.api_key_id)
+
+    total = db.scalar(count_stmt) or 0
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     documents = db.scalars(stmt).all()
     return DocumentList(
         items=[DocumentSummary.model_validate(d) for d in documents],
@@ -146,17 +177,30 @@ async def list_documents(
     )
 
 
-def _get_document_or_404(document_id: int, db: Session) -> Document:
+def _get_document_or_404(
+    document_id: int, db: Session, principal: Principal
+) -> Document:
+    """Fetch a document, enforcing per-key ownership.
+
+    A document owned by another key yields 404 rather than 403 so that callers
+    cannot probe for the existence of other users' documents.
+    """
     document = db.get(Document, document_id)
     if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if principal.scopes_documents and document.api_key_id != principal.api_key_id:
         raise HTTPException(status_code=404, detail="Document not found")
     return document
 
 
 @router.get("/{document_id}", response_model=DocumentDetail)
-async def get_document(document_id: int, db: Session = Depends(get_db)) -> DocumentDetail:
+async def get_document(
+    document_id: int,
+    principal: Principal = Depends(resolve_principal),
+    db: Session = Depends(get_db),
+) -> DocumentDetail:
     """Return document metadata plus per-page OCR data."""
-    document = _get_document_or_404(document_id, db)
+    document = _get_document_or_404(document_id, db, principal)
     # Validate the scalar metadata as a summary first, then attach the
     # transformed pages — model_validate() on the ORM object would try to coerce
     # the ORM Page rows (which store data_json, not `data`) into PageData.
@@ -169,10 +213,12 @@ async def get_document(document_id: int, db: Session = Depends(get_db)) -> Docum
 
 @router.get("/{document_id}/preview", response_model=PreviewResponse)
 async def preview_document(
-    document_id: int, db: Session = Depends(get_db)
+    document_id: int,
+    principal: Principal = Depends(resolve_principal),
+    db: Session = Depends(get_db),
 ) -> PreviewResponse:
     """Return structured, page-by-page preview data."""
-    document = _get_document_or_404(document_id, db)
+    document = _get_document_or_404(document_id, db, principal)
     return PreviewResponse(
         document_id=document.id,
         filename=document.filename,
@@ -185,10 +231,11 @@ async def preview_document(
 async def update_document_data(
     document_id: int,
     payload: DataUpdateRequest,
+    principal: Principal = Depends(resolve_principal),
     db: Session = Depends(get_db),
 ) -> PreviewResponse:
     """Update/correct extracted cell data for one or more pages."""
-    document = _get_document_or_404(document_id, db)
+    document = _get_document_or_404(document_id, db, principal)
     pages_by_number = {p.page_number: p for p in document.pages}
 
     for page_update in payload.pages:
@@ -227,17 +274,22 @@ def _document_grids(document: Document) -> list[list[list[str]]]:
 async def download_document(
     document_id: int,
     fmt: str = Query("xlsx", pattern="^(xlsx|csv)$"),
-    merge: bool = Query(False),
+    merge: bool | None = Query(
+        None, description="Overrides the document's merge_pages setting"
+    ),
     delimiter: str = Query(",", pattern="^[,;]$"),
+    principal: Principal = Depends(resolve_principal),
     db: Session = Depends(get_db),
 ):
     """Download the extracted data as ``xlsx`` (default) or ``csv``."""
-    document = _get_document_or_404(document_id, db)
+    document = _get_document_or_404(document_id, db, principal)
     if document.status != DocumentStatus.DONE:
         raise HTTPException(status_code=409, detail="Document is not ready for download")
 
     grids = _document_grids(document)
     base = Path(document.filename).stem
+    # Fall back to the layout chosen at upload time when not overridden.
+    merge_pages = document.merge_pages if merge is None else merge
 
     if fmt == "csv":
         content = excel.export_csv(grids, delimiter=delimiter)
@@ -250,7 +302,7 @@ async def download_document(
         )
 
     output_path = settings.results_dir / f"{document_id}_{base}_extracted.xlsx"
-    excel.export_xlsx(grids, output_path, merge=merge)
+    excel.export_xlsx(grids, output_path, merge=merge_pages)
     document.result_path = str(output_path)
     db.commit()
     return FileResponse(
@@ -261,9 +313,13 @@ async def download_document(
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_document(document_id: int, db: Session = Depends(get_db)) -> Response:
+async def delete_document(
+    document_id: int,
+    principal: Principal = Depends(resolve_principal),
+    db: Session = Depends(get_db),
+) -> Response:
     """Delete a document and its associated files on disk."""
-    document = _get_document_or_404(document_id, db)
+    document = _get_document_or_404(document_id, db, principal)
 
     # Remove uploaded PDF, page images, processed images and result files.
     (settings.uploads_dir / document.stored_filename).unlink(missing_ok=True)

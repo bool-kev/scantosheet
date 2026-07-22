@@ -56,6 +56,88 @@ def test_upload_rejects_empty_file(client: TestClient) -> None:
     assert response.status_code == 400
 
 
+def test_upload_rejects_invalid_callback_url(client: TestClient) -> None:
+    response = client.post(
+        "/api/documents",
+        files={"file": ("scan.pdf", b"%PDF-1.7\nfake", "application/pdf")},
+        data={"language": "fra", "callback_url": "not-a-url"},
+    )
+    assert response.status_code == 400
+    assert "callback_url" in response.json()["detail"]
+
+
+def test_download_uses_merge_pages_from_upload(client: TestClient) -> None:
+    """merge_pages chosen at import drives the export layout, and can be overridden."""
+    import openpyxl
+
+    from app.database import SessionLocal
+    from app.models import Document, DocumentStatus, Page
+
+    db = SessionLocal()
+    doc = Document(
+        filename="merged.pdf",
+        stored_filename="merged.pdf",
+        status=DocumentStatus.DONE,
+        page_count=2,
+        language="fra",
+        preprocessing=True,
+        merge_pages=True,
+    )
+    for number, value in ((1, "A"), (2, "B")):
+        doc.pages.append(
+            Page(
+                page_number=number,
+                text=value,
+                data_json=f'[[{{"value": "{value}", "confidence": 90.0}}]]',
+                mean_confidence=90.0,
+            )
+        )
+    db.add(doc)
+    db.commit()
+    doc_id = doc.id
+    db.close()
+
+    assert client.get(f"/api/documents/{doc_id}").json()["merge_pages"] is True
+
+    # No query param -> the document's own setting wins: a single sheet.
+    response = client.get(f"/api/documents/{doc_id}/download")
+    assert response.status_code == 200
+    from io import BytesIO
+
+    merged = openpyxl.load_workbook(BytesIO(response.content))
+    assert merged.sheetnames == ["Extraction"]
+    assert [c[0].value for c in merged["Extraction"].iter_rows()] == ["A", "B"]
+
+    # Explicit override still wins.
+    split = openpyxl.load_workbook(
+        BytesIO(client.get(f"/api/documents/{doc_id}/download?merge=false").content)
+    )
+    assert split.sheetnames == ["Page 1", "Page 2"]
+
+
+def test_cors_allows_configured_origin(client: TestClient) -> None:
+    """A browser client from an allowed origin must get CORS headers back."""
+    origin = "http://localhost:5173"
+    response = client.options(
+        "/api/documents",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "x-api-key",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+    assert "x-api-key" in response.headers["access-control-allow-headers"].lower()
+
+
+def test_cors_exposes_content_disposition(client: TestClient) -> None:
+    """Cross-origin JS cannot read the download filename without this header."""
+    response = client.get("/api/documents", headers={"Origin": "http://localhost:5173"})
+    assert response.status_code == 200
+    assert "content-disposition" in response.headers["access-control-expose-headers"].lower()
+
+
 def test_get_missing_document_404(client: TestClient) -> None:
     response = client.get("/api/documents/999999")
     assert response.status_code == 404

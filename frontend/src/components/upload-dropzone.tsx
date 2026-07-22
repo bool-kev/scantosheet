@@ -18,6 +18,7 @@ export function UploadDropzone() {
   const upload = useUpload();
   const [language, setLanguage] = useState("fra");
   const [preprocessing, setPreprocessing] = useState(true);
+  const [mergePages, setMergePages] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +32,7 @@ export function UploadDropzone() {
       const file = accepted[0];
       if (!file) return;
 
-      const options: UploadOptions = { language, preprocessing };
+      const options: UploadOptions = { language, preprocessing, mergePages };
       setProgress(0);
       upload.mutate(
         { file, options, onProgress: setProgress },
@@ -42,7 +43,7 @@ export function UploadDropzone() {
         },
       );
     },
-    [language, preprocessing, upload],
+    [language, preprocessing, mergePages, upload],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -78,6 +79,18 @@ export function UploadDropzone() {
             onChange={(e) => setPreprocessing(e.target.checked)}
           />
           Prétraitement d'image
+        </label>
+        <label
+          className="flex items-center gap-2 pb-2 text-sm font-medium text-slate-600"
+          title="Toutes les pages dans une seule feuille Excel, au lieu d'une feuille par page"
+        >
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300"
+            checked={mergePages}
+            onChange={(e) => setMergePages(e.target.checked)}
+          />
+          Fusionner les pages
         </label>
       </div>
 

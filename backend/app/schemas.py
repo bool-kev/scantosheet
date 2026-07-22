@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import DocumentStatus
+from app.models import ApiKeyRole, DocumentStatus
 
 
 class Cell(BaseModel):
@@ -27,7 +27,10 @@ class DocumentSummary(BaseModel):
     page_count: int
     language: str
     preprocessing: bool
+    merge_pages: bool = False
     error_message: str | None = None
+    callback_url: str | None = None
+    webhook_error: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -85,3 +88,32 @@ class HealthResponse(BaseModel):
     status: str = "ok"
     tesseract_available: bool
     tesseract_languages: list[str] = Field(default_factory=list)
+    auth_enabled: bool = False
+
+
+class ApiKeyCreate(BaseModel):
+    """Request to mint a new API key."""
+
+    label: str = Field(min_length=1, max_length=128, description="Human-readable owner name")
+    role: ApiKeyRole = ApiKeyRole.USER
+
+
+class ApiKeyOut(BaseModel):
+    """API key metadata. Never contains the secret."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    label: str
+    prefix: str
+    role: ApiKeyRole
+    is_active: bool
+    created_at: datetime
+    last_used_at: datetime | None = None
+    revoked_at: datetime | None = None
+
+
+class ApiKeyCreated(ApiKeyOut):
+    """Creation response — the only time the plaintext key is ever returned."""
+
+    key: str = Field(description="Store this now; it cannot be retrieved again")

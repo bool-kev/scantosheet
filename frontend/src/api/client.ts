@@ -1,4 +1,7 @@
 import type {
+  ApiKey,
+  ApiKeyCreateRequest,
+  ApiKeyCreated,
   Cell,
   DocumentDetail,
   DocumentList,
@@ -8,6 +11,7 @@ import type {
 } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const STORAGE_KEY = "scantosheet.apiKey";
 
 /** Error carrying the HTTP status and server-provided detail message. */
 export class ApiError extends Error {
@@ -17,6 +21,29 @@ export class ApiError extends Error {
     this.status = status;
     this.name = "ApiError";
   }
+}
+
+/** The API key is kept in localStorage so it survives reloads. */
+export function getApiKey(): string {
+  return localStorage.getItem(STORAGE_KEY) ?? "";
+}
+
+export function setApiKey(key: string): void {
+  const trimmed = key.trim();
+  if (trimmed) {
+    localStorage.setItem(STORAGE_KEY, trimmed);
+  } else {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+export function clearApiKey(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const key = getApiKey();
+  return key ? { ...extra, "X-API-Key": key } : extra;
 }
 
 async function handle<T>(response: Response): Promise<T> {
@@ -36,6 +63,35 @@ async function handle<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+/** Fetch a file with auth headers and hand it to the browser as a download. */
+async function downloadBlob(url: string, fallbackName: string): Promise<void> {
+  const response = await fetch(url, { headers: authHeaders() });
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      detail = (await response.json()).detail ?? detail;
+    } catch {
+      /* keep status text */
+    }
+    throw new ApiError(response.status, detail);
+  }
+
+  // Prefer the server-provided filename from Content-Disposition.
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  const filename = match ? decodeURIComponent(match[1]) : fallbackName;
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export const api = {
   baseUrl: API_URL,
 
@@ -48,15 +104,21 @@ export const api = {
       page: String(page),
       page_size: String(pageSize),
     });
-    return handle(await fetch(`${API_URL}/api/documents?${params}`));
+    return handle(
+      await fetch(`${API_URL}/api/documents?${params}`, { headers: authHeaders() }),
+    );
   },
 
   async getDocument(id: number): Promise<DocumentDetail> {
-    return handle(await fetch(`${API_URL}/api/documents/${id}`));
+    return handle(
+      await fetch(`${API_URL}/api/documents/${id}`, { headers: authHeaders() }),
+    );
   },
 
   async getPreview(id: number): Promise<PreviewResponse> {
-    return handle(await fetch(`${API_URL}/api/documents/${id}/preview`));
+    return handle(
+      await fetch(`${API_URL}/api/documents/${id}/preview`, { headers: authHeaders() }),
+    );
   },
 
   async uploadDocument(
@@ -70,9 +132,14 @@ export const api = {
       form.append("file", file);
       form.append("language", options.language);
       form.append("preprocessing", String(options.preprocessing));
+      form.append("merge_pages", String(options.mergePages));
 
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `${API_URL}/api/documents`);
+      const key = getApiKey();
+      if (key) {
+        xhr.setRequestHeader("X-API-Key", key);
+      }
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable && onProgress) {
@@ -97,11 +164,14 @@ export const api = {
     });
   },
 
-  async updateData(id: number, pages: { page_number: number; data: Cell[][] }[]): Promise<PreviewResponse> {
+  async updateData(
+    id: number,
+    pages: { page_number: number; data: Cell[][] }[],
+  ): Promise<PreviewResponse> {
     return handle(
       await fetch(`${API_URL}/api/documents/${id}/data`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ pages }),
       }),
     );
@@ -109,12 +179,51 @@ export const api = {
 
   async deleteDocument(id: number): Promise<void> {
     return handle(
-      await fetch(`${API_URL}/api/documents/${id}`, { method: "DELETE" }),
+      await fetch(`${API_URL}/api/documents/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      }),
     );
   },
 
-  downloadUrl(id: number, fmt: "xlsx" | "csv", merge = false, delimiter = ","): string {
+  /** Download the extraction. Uses fetch (not a plain link) to send the key. */
+  async download(
+    id: number,
+    fmt: "xlsx" | "csv",
+    merge = false,
+    delimiter = ",",
+  ): Promise<void> {
     const params = new URLSearchParams({ fmt, merge: String(merge), delimiter });
-    return `${API_URL}/api/documents/${id}/download?${params}`;
+    return downloadBlob(
+      `${API_URL}/api/documents/${id}/download?${params}`,
+      `document_${id}.${fmt}`,
+    );
+  },
+
+  // ----- Admin: API key management -----------------------------------------
+
+  async listApiKeys(): Promise<ApiKey[]> {
+    return handle(
+      await fetch(`${API_URL}/api/admin/keys`, { headers: authHeaders() }),
+    );
+  },
+
+  async createApiKey(payload: ApiKeyCreateRequest): Promise<ApiKeyCreated> {
+    return handle(
+      await fetch(`${API_URL}/api/admin/keys`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(payload),
+      }),
+    );
+  },
+
+  async revokeApiKey(id: number): Promise<ApiKey> {
+    return handle(
+      await fetch(`${API_URL}/api/admin/keys/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      }),
+    );
   },
 };
