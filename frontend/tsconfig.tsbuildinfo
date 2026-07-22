@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/api/client.ts","./src/api/types.ts","./src/components/document-list.tsx","./src/components/editable-table.tsx","./src/components/status-badge.tsx","./src/components/upload-dropzone.tsx","./src/hooks/usedocuments.ts","./src/pages/home-page.tsx","./src/pages/preview-page.tsx"],"version":"5.9.3"}
