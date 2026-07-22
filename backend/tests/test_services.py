@@ -151,6 +151,30 @@ def test_export_xlsx_one_sheet_per_page(tmp_path: Path) -> None:
     assert workbook["Page 2"]["B2"].value == "4"
 
 
+def test_export_xlsx_draws_cell_borders(tmp_path: Path) -> None:
+    """Every cell in the grid extent is outlined, including short/empty rows."""
+    pages = [[["Produit", "Qte", "Prix"], ["Pommes"]]]  # 2nd row is ragged
+    out = tmp_path / "borders.xlsx"
+    excel.export_xlsx(pages, out)
+
+    ws = openpyxl.load_workbook(out)["Page 1"]
+    for coord in ("A1", "B1", "C1", "A2", "B2", "C2"):
+        border = ws[coord].border
+        assert border.left.style == "thin", f"{coord} missing left border"
+        assert border.right.style == "thin", f"{coord} missing right border"
+        assert border.top.style == "thin", f"{coord} missing top border"
+        assert border.bottom.style == "thin", f"{coord} missing bottom border"
+
+    # Header styling and frozen header row.
+    assert ws["A1"].font.bold
+    assert ws["A1"].alignment.wrap_text
+    assert ws.freeze_panes == "A2"
+    # Ragged row was padded with an empty cell that still carries a border
+    # (openpyxl reads a written empty string back as None).
+    assert ws["B2"].value in (None, "")
+    assert ws.max_column == 3
+
+
 def test_export_xlsx_merged(tmp_path: Path) -> None:
     pages = [[["A"]], [["B"]]]
     out = tmp_path / "merged.xlsx"

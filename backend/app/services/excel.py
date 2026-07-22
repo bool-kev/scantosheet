@@ -7,7 +7,7 @@ import io
 from pathlib import Path
 
 from openpyxl import Workbook
-from openpyxl.styles import Font
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -19,6 +19,15 @@ log = get_logger(__name__)
 PageGrid = list[list[str]]
 
 _MAX_COL_WIDTH = 60
+
+# Every cell gets a thin grey outline so the table structure is visible.
+_THIN_SIDE = Side(style="thin", color="9CA3AF")
+_CELL_BORDER = Border(
+    left=_THIN_SIDE, right=_THIN_SIDE, top=_THIN_SIDE, bottom=_THIN_SIDE
+)
+_HEADER_FILL = PatternFill("solid", fgColor="E5E7EB")
+_HEADER_ALIGN = Alignment(horizontal="center", vertical="center", wrap_text=True)
+_CELL_ALIGN = Alignment(vertical="top", wrap_text=True)
 
 
 def _autosize_columns(worksheet: Worksheet, grid: PageGrid) -> None:
@@ -36,12 +45,31 @@ def _autosize_columns(worksheet: Worksheet, grid: PageGrid) -> None:
 
 
 def _write_grid(worksheet: Worksheet, grid: PageGrid, bold_header: bool) -> None:
-    """Write a 2D grid into a worksheet, optionally bolding the first row."""
+    """Write a 2D grid into a worksheet with visible cell borders.
+
+    Every cell in the grid's rectangular extent is outlined — including cells
+    that are empty — so the table structure stays readable in Excel.
+    """
+    if not grid:
+        return
+    n_cols = max(len(row) for row in grid)
+
     for r, row in enumerate(grid, start=1):
-        for c, value in enumerate(row, start=1):
+        for c in range(1, n_cols + 1):
+            value = row[c - 1] if c - 1 < len(row) else ""
             cell = worksheet.cell(row=r, column=c, value=value)
+            cell.border = _CELL_BORDER
             if bold_header and r == 1:
                 cell.font = Font(bold=True)
+                cell.fill = _HEADER_FILL
+                cell.alignment = _HEADER_ALIGN
+            else:
+                cell.alignment = _CELL_ALIGN
+
+    # Freeze the header row so it stays visible while scrolling.
+    if bold_header:
+        worksheet.freeze_panes = "A2"
+
     _autosize_columns(worksheet, grid)
 
 
