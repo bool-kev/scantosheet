@@ -157,9 +157,14 @@ def _get_document_or_404(document_id: int, db: Session) -> Document:
 async def get_document(document_id: int, db: Session = Depends(get_db)) -> DocumentDetail:
     """Return document metadata plus per-page OCR data."""
     document = _get_document_or_404(document_id, db)
-    detail = DocumentDetail.model_validate(document)
-    detail.pages = [_page_to_schema(p) for p in document.pages]
-    return detail
+    # Validate the scalar metadata as a summary first, then attach the
+    # transformed pages — model_validate() on the ORM object would try to coerce
+    # the ORM Page rows (which store data_json, not `data`) into PageData.
+    summary = DocumentSummary.model_validate(document)
+    return DocumentDetail(
+        **summary.model_dump(),
+        pages=[_page_to_schema(p) for p in document.pages],
+    )
 
 
 @router.get("/{document_id}/preview", response_model=PreviewResponse)

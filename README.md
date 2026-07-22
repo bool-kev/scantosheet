@@ -61,7 +61,51 @@ and do not abort the rest of the document.
 
 ---
 
-## Local development (without Docker)
+## Run without Docker
+
+### Windows (one-time setup)
+
+```powershell
+# 1. System binaries
+winget install oschwartz10612.Poppler          # Poppler (pdftoppm etc.)
+#    Tesseract 5: install from https://github.com/UB-Mannheim/tesseract/wiki
+
+# 2. Tesseract language data (Program Files is often read-only, so use a
+#    user-writable tessdata dir and point TESSDATA_PREFIX at it)
+$tess = "$env:LOCALAPPDATA\scantosheet-tessdata"
+New-Item -ItemType Directory -Force $tess | Out-Null
+Copy-Item 'C:\Program Files\Tesseract-OCR\tessdata\eng.traineddata' $tess
+Copy-Item 'C:\Program Files\Tesseract-OCR\tessdata\osd.traineddata' $tess
+foreach ($l in 'fra','ara') {
+  Invoke-WebRequest "https://github.com/tesseract-ocr/tessdata_fast/raw/main/$l.traineddata" `
+    -OutFile "$tess\$l.traineddata"
+}
+
+# 3. Backend venv
+cd backend; python -m venv .venv
+.\.venv\Scripts\pip install fastapi "uvicorn[standard]" pydantic pydantic-settings `
+  python-multipart SQLAlchemy structlog pytesseract pdf2image Pillow `
+  opencv-python-headless numpy openpyxl
+
+# 4. Frontend deps
+cd ..\frontend; npm install
+```
+
+Then start both servers with the bundled launcher:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run-local.ps1
+```
+
+`run-local.ps1` auto-detects the Poppler bin, points `TESSDATA_PREFIX` at the
+tessdata dir that actually contains `fra`, and starts uvicorn (:8000) + Vite
+(:5173) together. `Ctrl+C` stops both.
+
+> On Python 3.14 the pinned versions in `requirements.txt` (which target the
+> Python 3.12 Docker image) may lack wheels — install the deps unpinned as in
+> step 3 above.
+
+### Linux / macOS
 
 Requires **Tesseract OCR** (with `fra`/`eng`/`ara` language packs) and
 **Poppler** installed on the host.

@@ -67,16 +67,17 @@ def _find_grid_lines(image_path: Path) -> tuple[list[int], list[int]]:
     horizontal = _detect_lines(binary, horizontal=True)
     vertical = _detect_lines(binary, horizontal=False)
 
-    # Column boundaries from vertical lines.
+    # findNonZero returns an (N, 1, 2) array of (x, y) points; index it
+    # vectorially to stay robust across numpy/OpenCV versions.
     col_positions: list[int] = []
     cols = cv2.findNonZero(vertical)
     if cols is not None:
-        col_positions = [pt[0][0] for pt in cols]
+        col_positions = cols.reshape(-1, 2)[:, 0].tolist()
     # Row boundaries from horizontal lines.
     row_positions: list[int] = []
     rows = cv2.findNonZero(horizontal)
     if rows is not None:
-        row_positions = [pt[0][1] for pt in rows]
+        row_positions = rows.reshape(-1, 2)[:, 1].tolist()
 
     x_lines = _cluster_positions(col_positions, min_gap=max(15, w // 60))
     y_lines = _cluster_positions(row_positions, min_gap=max(15, h // 60))
