@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     max_workers: int = 2
     enable_preprocessing: bool = True
 
+    # When True, only data inside detected table grids is extracted; text before
+    # and after tables (titles, headers, footers, paragraphs) is ignored.
+    extract_tables_only: bool = True
+
     # OCR confidence threshold below which a cell is flagged as "low confidence"
     low_confidence_threshold: int = 70
 

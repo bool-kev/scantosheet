@@ -95,7 +95,9 @@ def _process_page(document: Document, page_number: int, image_path: Path) -> Pag
             ocr_input = preprocess.preprocess_image(image_path, processed_path)
 
         result = ocr.run_ocr(ocr_input, lang=document.language)
-        grid = table.structure_page(ocr_input, result)
+        grid = table.structure_page(
+            ocr_input, result, tables_only=settings.extract_tables_only
+        )
 
         text = result.text
         mean_conf = result.mean_confidence
