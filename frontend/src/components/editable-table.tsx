@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { forwardRef, useLayoutEffect, useRef, useState } from "react";
+import type { MutableRefObject } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import type { Cell } from "../api/types";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 const LOW_CONFIDENCE = 70;
 
@@ -23,6 +25,54 @@ interface EditableTableProps {
   onDeleteColumn: (col: number) => void;
 }
 
+/** A textarea that grows to fit its content — used only for the focused cell,
+ * so long values can be read and edited without side-scrolling.
+ *
+ * Wrapped in forwardRef because it's rendered as TooltipTrigger's `asChild`
+ * child: Radix needs a real ref to the DOM node to position the tooltip, and
+ * a plain function component can't receive one under React 18. */
+const AutoGrowTextarea = forwardRef<
+  HTMLTextAreaElement,
+  {
+    value: string;
+    onChange: (value: string) => void;
+    onFocus: () => void;
+    onBlur: () => void;
+    className?: string;
+  }
+>(function AutoGrowTextarea({ value, onChange, onFocus, onBlur, className }, forwardedRef) {
+  const innerRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={(node) => {
+        innerRef.current = node;
+        if (typeof forwardedRef === "function") forwardedRef(node);
+        else if (forwardedRef) {
+          (forwardedRef as MutableRefObject<HTMLTextAreaElement | null>).current = node;
+        }
+      }}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      autoFocus
+      rows={1}
+      className={cn(
+        "block w-full resize-none overflow-hidden whitespace-pre-wrap break-words bg-transparent px-2 py-1.5 outline-none",
+        className,
+      )}
+    />
+  );
+});
+
 /** Renders an editable grid. Cells below the confidence threshold are highlighted. */
 export function EditableTable({
   data,
@@ -38,6 +88,10 @@ export function EditableTable({
   // clicking a button below blurs the input first, and clearing here would
   // erase the position right before the click handler needs to read it.
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
+  // Tracks which cell currently has real DOM focus, cleared on blur — this
+  // drives the wrap-to-edit textarea, which should only appear while the
+  // user is actually typing in that cell.
+  const [focusedCell, setFocusedCell] = useState<ActiveCell | null>(null);
 
   const canDeleteColumn = activeCell !== null && columnCount > 1;
 
@@ -119,31 +173,48 @@ export function EditableTable({
                     const low =
                       cell.value.trim() !== "" && cell.confidence < LOW_CONFIDENCE;
                     const isActive = activeCell?.row === r && activeCell?.col === c;
-                    const input = (
+                    const isFocused = focusedCell?.row === r && focusedCell?.col === c;
+
+                    const focus = () => {
+                      setActiveCell({ row: r, col: c });
+                      setFocusedCell({ row: r, col: c });
+                    };
+                    const blur = () =>
+                      setFocusedCell((f) => (f?.row === r && f?.col === c ? null : f));
+
+                    const colorClass = low ? "text-amber-700 dark:text-amber-400" : "text-foreground";
+                    const field = isFocused ? (
+                      <AutoGrowTextarea
+                        value={cell.value}
+                        onChange={(value) => onChange(r, c, value)}
+                        onFocus={focus}
+                        onBlur={blur}
+                        className={colorClass}
+                      />
+                    ) : (
                       <input
                         value={cell.value}
                         onChange={(e) => onChange(r, c, e.target.value)}
-                        onFocus={() => setActiveCell({ row: r, col: c })}
-                        className={`w-full min-w-[6rem] bg-transparent px-2 py-1.5 outline-none focus:bg-accent ${
-                          low ? "text-amber-700 dark:text-amber-400" : "text-foreground"
-                        }`}
+                        onFocus={focus}
+                        className={`w-full min-w-[6rem] bg-transparent px-2 py-1.5 outline-none focus:bg-accent ${colorClass}`}
                       />
                     );
+
                     return (
                       <td
                         key={c}
-                        className={`border p-0 ${low ? "bg-amber-500/10" : ""} ${
+                        className={`border p-0 align-top ${low ? "bg-amber-500/10" : ""} ${
                           isActive ? "ring-1 ring-inset ring-ring" : ""
                         }`}
                       >
                         {/* The Tooltip/Trigger wrapper stays constant across renders so
                             typing the first character (value: "" -> non-empty) never
-                            changes the tree shape around `input` and remounts it. */}
+                            changes the tree shape around the field and remounts it. */}
                         <Tooltip>
-                          <TooltipTrigger asChild>{input}</TooltipTrigger>
+                          <TooltipTrigger asChild>{field}</TooltipTrigger>
                           {cell.value && (
                             <TooltipContent>
-                              {cell.confidence.toFixed(0)}% — {cell.value}
+                              {cell.confidence.toFixed(0)}%
                             </TooltipContent>
                           )}
                         </Tooltip>
