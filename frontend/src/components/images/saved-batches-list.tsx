@@ -1,5 +1,18 @@
+import { Trash2 } from "lucide-react";
+
 import type { ImageBatchSummary } from "../../api/types";
 import { useBatches, useDeleteBatch } from "../../hooks/useImagePdf";
+import { ConfirmDialog } from "../confirm-dialog";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("fr-FR", {
@@ -20,11 +33,17 @@ export function SavedBatchesList({ onOpen }: SavedBatchesListProps) {
   const deleteBatch = useDeleteBatch();
 
   if (isLoading) {
-    return <p className="py-6 text-center text-sm text-slate-400">Chargement…</p>;
+    return (
+      <div className="space-y-2 rounded-xl border">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-none first:rounded-t-xl last:rounded-b-xl" />
+        ))}
+      </div>
+    );
   }
   if (isError) {
     return (
-      <p className="py-6 text-center text-sm text-red-600">
+      <p className="py-6 text-center text-sm text-destructive">
         Impossible de charger les lots enregistrés.
       </p>
     );
@@ -33,57 +52,51 @@ export function SavedBatchesList({ onOpen }: SavedBatchesListProps) {
   const batches = data ?? [];
   if (batches.length === 0) {
     return (
-      <p className="py-6 text-center text-sm text-slate-400">
+      <p className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
         Aucun lot enregistré pour le moment.
       </p>
     );
   }
 
-  const onDelete = (batch: ImageBatchSummary) => {
-    if (window.confirm(`Supprimer le lot « ${batch.name} » ?`)) {
-      deleteBatch.mutate(batch.id);
-    }
-  };
-
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-          <tr>
-            <th className="px-4 py-3 font-medium">Nom</th>
-            <th className="px-4 py-3 font-medium">Images</th>
-            <th className="px-4 py-3 font-medium">Dernière modification</th>
-            <th className="px-4 py-3 text-right font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
+    <div className="overflow-hidden rounded-xl border">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Nom</TableHead>
+            <TableHead>Images</TableHead>
+            <TableHead>Dernière modification</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {batches.map((batch) => (
-            <tr key={batch.id} className="hover:bg-slate-50">
-              <td className="max-w-xs truncate px-4 py-3 font-medium text-slate-700">
-                {batch.name}
-              </td>
-              <td className="px-4 py-3 text-slate-500">{batch.image_count}</td>
-              <td className="px-4 py-3 text-slate-500">{formatDate(batch.updated_at)}</td>
-              <td className="px-4 py-3">
+            <TableRow key={batch.id}>
+              <TableCell className="max-w-xs truncate font-medium">{batch.name}</TableCell>
+              <TableCell className="text-muted-foreground">{batch.image_count}</TableCell>
+              <TableCell className="text-muted-foreground">{formatDate(batch.updated_at)}</TableCell>
+              <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => onOpen(batch)}
-                    className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600"
-                  >
+                  <Button size="sm" onClick={() => onOpen(batch)}>
                     Ouvrir
-                  </button>
-                  <button
-                    onClick={() => onDelete(batch)}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                  >
-                    Supprimer
-                  </button>
+                  </Button>
+                  <ConfirmDialog
+                    trigger={
+                      <Button variant="outline" size="icon-sm" aria-label="Supprimer">
+                        <Trash2 />
+                      </Button>
+                    }
+                    title="Supprimer ce lot ?"
+                    description={`« ${batch.name} » et ses images seront définitivement supprimés.`}
+                    confirmLabel="Supprimer"
+                    onConfirm={() => deleteBatch.mutate(batch.id)}
+                  />
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

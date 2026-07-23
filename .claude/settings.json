@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python \"C:\\\\Users\\\\PROJETDEV02\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"OCR document scanner productivity tool professional clean\" --design-system -p \"ScanToSheet\")"
+    ]
+  }
+}

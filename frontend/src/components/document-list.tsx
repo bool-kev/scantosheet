@@ -1,8 +1,20 @@
 import { Link } from "react-router-dom";
+import { AlertTriangle, Trash2 } from "lucide-react";
 
 import type { DocumentSummary } from "../api/types";
 import { useDeleteDocument, useDocuments } from "../hooks/useDocuments";
 import { StatusBadge } from "./status-badge";
+import { ConfirmDialog } from "./confirm-dialog";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
@@ -20,11 +32,17 @@ export function DocumentList() {
   const deleteDoc = useDeleteDocument();
 
   if (isLoading) {
-    return <p className="py-8 text-center text-sm text-slate-400">Chargement…</p>;
+    return (
+      <div className="space-y-2 rounded-xl border">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-none first:rounded-t-xl last:rounded-b-xl" />
+        ))}
+      </div>
+    );
   }
   if (isError) {
     return (
-      <p className="py-8 text-center text-sm text-red-600">
+      <p className="py-8 text-center text-sm text-destructive">
         Impossible de charger les documents : {(error as Error).message}
       </p>
     );
@@ -33,68 +51,67 @@ export function DocumentList() {
   const documents = data?.items ?? [];
   if (documents.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-slate-400">
+      <p className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
         Aucun document pour le moment. Envoyez un PDF pour commencer.
       </p>
     );
   }
 
-  const onDelete = (doc: DocumentSummary) => {
-    if (window.confirm(`Supprimer « ${doc.filename} » ?`)) {
-      deleteDoc.mutate(doc.id);
-    }
-  };
+  const onDelete = (doc: DocumentSummary) => deleteDoc.mutate(doc.id);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-          <tr>
-            <th className="px-4 py-3 font-medium">Fichier</th>
-            <th className="px-4 py-3 font-medium">Pages</th>
-            <th className="px-4 py-3 font-medium">Statut</th>
-            <th className="px-4 py-3 font-medium">Date</th>
-            <th className="px-4 py-3 text-right font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
+    <div className="overflow-hidden rounded-xl border">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Fichier</TableHead>
+            <TableHead>Pages</TableHead>
+            <TableHead>Statut</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {documents.map((doc) => (
-            <tr key={doc.id} className="hover:bg-slate-50">
-              <td className="max-w-xs truncate px-4 py-3 font-medium text-slate-700">
-                {doc.filename}
-              </td>
-              <td className="px-4 py-3 text-slate-500">{doc.page_count}</td>
-              <td className="px-4 py-3">
-                <StatusBadge status={doc.status} />
-                {doc.status === "error" && doc.error_message && (
-                  <span className="ml-2 text-xs text-red-500" title={doc.error_message}>
-                    ⚠
-                  </span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-slate-500">{formatDate(doc.created_at)}</td>
-              <td className="px-4 py-3">
+            <TableRow key={doc.id}>
+              <TableCell className="max-w-xs truncate font-medium">{doc.filename}</TableCell>
+              <TableCell className="text-muted-foreground">{doc.page_count}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1.5">
+                  <StatusBadge status={doc.status} />
+                  {doc.status === "error" && doc.error_message && (
+                    <AlertTriangle
+                      className="size-3.5 text-destructive"
+                      aria-label={doc.error_message}
+                    />
+                  )}
+                </div>
+              </TableCell>
+              <TableCell className="text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
+              <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
                   {doc.status === "done" && (
-                    <Link
-                      to={`/documents/${doc.id}`}
-                      className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600"
-                    >
-                      Aperçu
-                    </Link>
+                    <Button asChild size="sm">
+                      <Link to={`/documents/${doc.id}`}>Aperçu</Link>
+                    </Button>
                   )}
-                  <button
-                    onClick={() => onDelete(doc)}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                  >
-                    Supprimer
-                  </button>
+                  <ConfirmDialog
+                    trigger={
+                      <Button variant="outline" size="icon-sm" aria-label="Supprimer">
+                        <Trash2 />
+                      </Button>
+                    }
+                    title="Supprimer ce document ?"
+                    description={`« ${doc.filename} » et son résultat seront définitivement supprimés.`}
+                    confirmLabel="Supprimer"
+                    onConfirm={() => onDelete(doc)}
+                  />
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

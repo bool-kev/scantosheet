@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 import { ApiError, api } from "../api/client";
 import type { ImageBatchSummary } from "../api/types";
@@ -52,9 +53,11 @@ export function ImagesPage() {
         setProgress,
       );
       if (result.kind === "document") {
+        toast.success("Document créé, extraction en cours…");
         navigate(`/documents/${result.document.id}`);
       } else {
         api.downloadBlobFile(result.blob, result.filename);
+        toast.success("PDF généré et téléchargé.");
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Échec de la génération du PDF");
@@ -73,7 +76,10 @@ export function ImagesPage() {
         onProgress: setProgress,
       },
       {
-        onSuccess: (saved) => batch.markSaved(saved.id),
+        onSuccess: (saved) => {
+          batch.markSaved(saved.id);
+          toast.success("Lot enregistré.");
+        },
         onError: (err) => {
           setError(err instanceof ApiError ? err.message : "Échec de l'enregistrement du lot");
         },
@@ -83,16 +89,11 @@ export function ImagesPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Link to="/" className="text-sm text-brand-600 hover:underline">
-            ← Retour à l'historique
-          </Link>
-          <h1 className="mt-1 text-3xl font-bold text-slate-900">Images → PDF</h1>
-          <p className="mt-1 text-slate-500">
-            Chargez des images, organisez-les en glisser-déposer, puis générez un PDF unique.
-          </p>
-        </div>
+      <header className="mb-8">
+        <h1 className="text-3xl font-semibold tracking-tight">Images → PDF</h1>
+        <p className="mt-1 text-muted-foreground">
+          Chargez des images, organisez-les en glisser-déposer, puis générez un PDF unique.
+        </p>
       </header>
 
       <section className="mb-6">
@@ -121,7 +122,9 @@ export function ImagesPage() {
       </section>
 
       {error && (
-        <p className="mb-6 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="mb-6 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
       )}
 
       <section className="mb-10">
@@ -135,7 +138,7 @@ export function ImagesPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-slate-800">Lots enregistrés</h2>
+        <h2 className="mb-3 text-lg font-semibold tracking-tight">Lots enregistrés</h2>
         <SavedBatchesList onOpen={handleOpenSavedBatch} />
       </section>
     </div>

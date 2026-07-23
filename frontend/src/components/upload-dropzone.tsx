@@ -1,9 +1,22 @@
 import { useCallback, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
+import { UploadCloud } from "lucide-react";
 
 import { ApiError } from "../api/client";
 import type { UploadOptions } from "../api/types";
 import { useUpload } from "../hooks/useDocuments";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 const LANGUAGES = [
   { value: "fra", label: "Français" },
@@ -55,93 +68,76 @@ export function UploadDropzone() {
   });
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-end gap-4">
-        <label className="flex flex-col text-sm font-medium text-slate-600">
-          Langue du document
-          <select
-            className="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
+    <Card>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-end gap-6">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="upload-language">Langue du document</Label>
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger id="upload-language" className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LANGUAGES.map((l) => (
+                  <SelectItem key={l.value} value={l.value}>
+                    {l.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <label className="flex items-center gap-2 pb-2 text-sm font-medium">
+            <Switch checked={preprocessing} onCheckedChange={setPreprocessing} />
+            Prétraitement d'image
+          </label>
+
+          <label
+            className="flex items-center gap-2 pb-2 text-sm font-medium"
+            title="Toutes les pages dans une seule feuille Excel, au lieu d'une feuille par page"
           >
-            {LANGUAGES.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 pb-2 text-sm font-medium text-slate-600">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-slate-300"
-            checked={preprocessing}
-            onChange={(e) => setPreprocessing(e.target.checked)}
-          />
-          Prétraitement d'image
-        </label>
-        <label
-          className="flex items-center gap-2 pb-2 text-sm font-medium text-slate-600"
-          title="Toutes les pages dans une seule feuille Excel, au lieu d'une feuille par page"
-        >
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-slate-300"
-            checked={mergePages}
-            onChange={(e) => setMergePages(e.target.checked)}
-          />
-          Fusionner les pages
-        </label>
-      </div>
-
-      <div
-        {...getRootProps()}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition ${
-          isDragActive
-            ? "border-brand-500 bg-brand-50"
-            : "border-slate-300 hover:border-brand-500 hover:bg-slate-50"
-        }`}
-      >
-        <input {...getInputProps()} />
-        <svg
-          className="mb-3 h-10 w-10 text-slate-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
-          />
-        </svg>
-        <p className="text-sm font-medium text-slate-700">
-          {isDragActive
-            ? "Déposez le PDF ici…"
-            : "Glissez-déposez un PDF, ou cliquez pour parcourir"}
-        </p>
-        <p className="mt-1 text-xs text-slate-400">PDF uniquement · max {MAX_SIZE_MB} Mo</p>
-      </div>
-
-      {upload.isPending && (
-        <div className="mt-4">
-          <div className="mb-1 flex justify-between text-xs text-slate-500">
-            <span>Envoi en cours…</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full bg-brand-500 transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+            <Switch checked={mergePages} onCheckedChange={setMergePages} />
+            Fusionner les pages
+          </label>
         </div>
-      )}
 
-      {error && (
-        <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-      )}
-    </div>
+        <div
+          {...getRootProps()}
+          className={cn(
+            "flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-12 text-center transition-colors",
+            isDragActive
+              ? "border-primary bg-accent"
+              : "border-border hover:border-primary/50 hover:bg-muted/50",
+          )}
+        >
+          <input {...getInputProps()} />
+          <UploadCloud className="mb-3 size-9 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm font-medium">
+            {isDragActive
+              ? "Déposez le PDF ici…"
+              : "Glissez-déposez un PDF, ou cliquez pour parcourir"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            PDF uniquement · max {MAX_SIZE_MB} Mo
+          </p>
+        </div>
+
+        {upload.isPending && (
+          <div>
+            <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+              <span>Envoi en cours…</span>
+              <span>{progress}%</span>
+            </div>
+            <Progress value={progress} />
+          </div>
+        )}
+
+        {error && (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

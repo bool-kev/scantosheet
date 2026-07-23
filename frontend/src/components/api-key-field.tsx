@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Eye, EyeOff } from "lucide-react";
 
 import { clearApiKey, getApiKey, setApiKey } from "../api/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 /** Lets the operator paste the API key used for every request. */
 export function ApiKeyField() {
@@ -20,51 +25,50 @@ export function ApiKeyField() {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <label className="block text-sm font-medium text-slate-700">
-        Clé administrateur
-      </label>
-      <p className="mt-0.5 text-xs text-slate-400">
-        Requise pour gérer les clés. Envoyée dans l'en-tête <code>X-API-Key</code>{" "}
-        et stockée dans ce navigateur uniquement.
-      </p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <input
-          type={reveal ? "text" : "password"}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="sts_…"
-          autoComplete="off"
-          spellCheck={false}
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm"
-        />
-        <button
-          type="button"
-          onClick={() => setReveal((r) => !r)}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
-        >
-          {reveal ? "Masquer" : "Afficher"}
-        </button>
-        <button
-          type="button"
-          onClick={() => persist(value)}
-          className="rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-600"
-        >
-          Enregistrer
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            clearApiKey();
-            setValue("");
-            queryClient.invalidateQueries();
-          }}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
-        >
-          Effacer
-        </button>
-      </div>
-      {saved && <p className="mt-2 text-sm text-emerald-700">Clé enregistrée.</p>}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Clé administrateur</CardTitle>
+        <CardDescription>
+          Requise pour gérer les clés. Envoyée dans l'en-tête <code>X-API-Key</code> et
+          stockée dans ce navigateur uniquement.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Label htmlFor="admin-key" className="sr-only">
+          Clé administrateur
+        </Label>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            id="admin-key"
+            type={reveal ? "text" : "password"}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="sts_…"
+            autoComplete="off"
+            spellCheck={false}
+            className="min-w-0 flex-1 font-mono"
+          />
+          <Button type="button" variant="outline" size="icon" onClick={() => setReveal((r) => !r)}>
+            {reveal ? <EyeOff /> : <Eye />}
+            <span className="sr-only">{reveal ? "Masquer" : "Afficher"}</span>
+          </Button>
+          <Button type="button" onClick={() => persist(value)}>
+            Enregistrer
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              clearApiKey();
+              setValue("");
+              queryClient.invalidateQueries();
+            }}
+          >
+            Effacer
+          </Button>
+        </div>
+        {saved && <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-400">Clé enregistrée.</p>}
+      </CardContent>
+    </Card>
   );
 }

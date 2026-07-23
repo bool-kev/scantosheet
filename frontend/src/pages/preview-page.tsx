@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { AlertTriangle, ArrowLeft, Download, FileSpreadsheet } from "lucide-react";
 
 import { ApiError, api } from "../api/client";
 import type { Cell, PageData } from "../api/types";
 import { EditableTable } from "../components/editable-table";
 import { StatusBadge } from "../components/status-badge";
 import { useDocument, useUpdateData } from "../hooks/useDocuments";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function PreviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -36,17 +41,15 @@ export function PreviewPage() {
   }, [doc?.id, doc?.merge_pages]);
 
   if (isLoading) {
-    return <p className="p-10 text-center text-slate-400">Chargement…</p>;
+    return <p className="p-10 text-center text-muted-foreground">Chargement…</p>;
   }
   if (isError || !doc) {
     return (
-      <div className="p-10 text-center text-red-600">
-        {(error as Error)?.message ?? "Document introuvable"}
-        <div className="mt-4">
-          <Link to="/" className="text-brand-600 underline">
-            Retour
-          </Link>
-        </div>
+      <div className="p-10 text-center">
+        <p className="text-destructive">{(error as Error)?.message ?? "Document introuvable"}</p>
+        <Button asChild variant="link" className="mt-4">
+          <Link to="/">Retour</Link>
+        </Button>
       </div>
     );
   }
@@ -86,9 +89,7 @@ export function PreviewPage() {
     try {
       await api.download(doc.id, fmt, fmt === "xlsx" ? merge : false);
     } catch (err) {
-      setDownloadError(
-        err instanceof ApiError ? err.message : "Échec du téléchargement",
-      );
+      setDownloadError(err instanceof ApiError ? err.message : "Échec du téléchargement");
     }
   };
 
@@ -98,99 +99,92 @@ export function PreviewPage() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <Link to="/" className="text-sm text-brand-600 hover:underline">
-            ← Retour à l'historique
-          </Link>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">{doc.filename}</h1>
-          <div className="mt-1 flex items-center gap-3 text-sm text-slate-500">
+          <Button asChild variant="link" className="h-auto p-0 text-sm">
+            <Link to="/">
+              <ArrowLeft className="size-3.5" /> Retour à l'historique
+            </Link>
+          </Button>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{doc.filename}</h1>
+          <div className="mt-1.5 flex items-center gap-3 text-sm text-muted-foreground">
             <StatusBadge status={doc.status} />
             <span>{doc.page_count} page(s)</span>
             <span>Langue : {doc.language}</span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1.5 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={merge}
-              onChange={(e) => setMerge(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300"
-            />
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Switch checked={merge} onCheckedChange={setMerge} />
             Fusionner les pages
           </label>
-          <button
+          <Button
+            variant="outline"
             onClick={handleSave}
             disabled={!dirty || updateData.isPending}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-40 hover:bg-slate-100"
           >
             {updateData.isPending ? "Enregistrement…" : "Enregistrer"}
-          </button>
-          <button
-            onClick={() => handleDownload("xlsx")}
-            className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-          >
-            Excel (.xlsx)
-          </button>
-          <button
-            onClick={() => handleDownload("csv")}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-          >
-            CSV
-          </button>
+          </Button>
+          <Button onClick={() => handleDownload("xlsx")}>
+            <FileSpreadsheet /> Excel (.xlsx)
+          </Button>
+          <Button variant="outline" onClick={() => handleDownload("csv")}>
+            <Download /> CSV
+          </Button>
         </div>
       </div>
 
       {downloadError && (
-        <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {downloadError}
         </p>
       )}
       {saved && (
-        <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="mb-4 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
           Modifications enregistrées.
         </p>
       )}
       {dirty && (
-        <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+        <p className="mb-4 flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="size-4 shrink-0" />
           Modifications non enregistrées — pensez à enregistrer avant de télécharger.
         </p>
       )}
 
       {pages.length > 1 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {pages.map((p, index) => (
-            <button
-              key={p.page_number}
-              onClick={() => setActivePage(index)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                index === activePage
-                  ? "bg-brand-500 text-white"
-                  : "border border-slate-200 text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              Page {p.page_number}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          value={String(activePage)}
+          onValueChange={(v) => setActivePage(Number(v))}
+          className="mb-4"
+        >
+          <TabsList className="h-auto flex-wrap bg-transparent p-0" variant="line">
+            {pages.map((p, index) => (
+              <TabsTrigger key={p.page_number} value={String(index)}>
+                Page {p.page_number}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       )}
 
       {current?.warning && (
-        <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-          ⚠ {current.warning}
+        <p className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <AlertTriangle className="size-4 shrink-0" />
+          {current.warning}
         </p>
       )}
 
       {current && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between text-xs text-slate-400">
-            <span>
-              Confiance moyenne : {current.mean_confidence.toFixed(0)}% · cellules en
-              orange = faible confiance (&lt;70%)
-            </span>
-          </div>
-          <EditableTable data={current.data} onChange={handleCellChange} />
-        </div>
+        <Card>
+          <CardContent>
+            <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                Confiance moyenne : {current.mean_confidence.toFixed(0)}% · cellules en orange =
+                faible confiance (&lt;70%)
+              </span>
+            </div>
+            <EditableTable data={current.data} onChange={handleCellChange} />
+          </CardContent>
+        </Card>
       )}
     </div>
   );

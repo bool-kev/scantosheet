@@ -11,7 +11,7 @@ interface EditableTableProps {
 export function EditableTable({ data, onChange }: EditableTableProps) {
   if (data.length === 0) {
     return (
-      <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+      <p className="rounded-lg bg-muted px-4 py-6 text-center text-sm text-muted-foreground">
         Aucune donnée structurée sur cette page.
       </p>
     );
@@ -20,7 +20,7 @@ export function EditableTable({ data, onChange }: EditableTableProps) {
   const columnCount = Math.max(...data.map((row) => row.length));
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200">
+    <div className="overflow-x-auto rounded-lg border">
       <table className="w-full border-collapse text-sm">
         <tbody>
           {data.map((row, r) => (
@@ -32,9 +32,7 @@ export function EditableTable({ data, onChange }: EditableTableProps) {
                 return (
                   <td
                     key={c}
-                    className={`border border-slate-200 p-0 ${
-                      low ? "bg-amber-50" : ""
-                    }`}
+                    className={`border p-0 ${low ? "bg-amber-500/10" : ""}`}
                     title={
                       cell.value ? `Confiance : ${cell.confidence.toFixed(0)}%` : undefined
                     }
@@ -42,8 +40,8 @@ export function EditableTable({ data, onChange }: EditableTableProps) {
                     <input
                       value={cell.value}
                       onChange={(e) => onChange(r, c, e.target.value)}
-                      className={`w-full min-w-[6rem] bg-transparent px-2 py-1.5 outline-none focus:bg-brand-50 ${
-                        low ? "text-amber-900" : "text-slate-700"
+                      className={`w-full min-w-[6rem] bg-transparent px-2 py-1.5 outline-none focus:bg-accent ${
+                        low ? "text-amber-700 dark:text-amber-400" : "text-foreground"
                       }`}
                     />
                   </td>

@@ -1,8 +1,18 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useState } from "react";
+import { RotateCw, X } from "lucide-react";
 
 import type { PageItem } from "../../hooks/useImageBatch";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { PageLightbox } from "./page-lightbox";
 
 interface PageCardProps {
@@ -31,12 +41,13 @@ export function PageCard({ item, position, total, onRotate, onRemove, onSetPosit
       <div
         ref={setNodeRef}
         style={style}
-        className={`group relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${
-          isDragging ? "opacity-50" : ""
-        }`}
+        className={cn(
+          "group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm",
+          isDragging && "opacity-50",
+        )}
       >
         <div
-          className="relative flex aspect-[3/4] min-h-[320px] cursor-grab items-center justify-center overflow-hidden bg-slate-100 active:cursor-grabbing"
+          className="relative flex aspect-[3/4] min-h-[320px] cursor-grab items-center justify-center overflow-hidden bg-muted active:cursor-grabbing"
           {...attributes}
           {...listeners}
         >
@@ -52,72 +63,63 @@ export function PageCard({ item, position, total, onRotate, onRemove, onSetPosit
             draggable={false}
           />
 
-          <span className="absolute left-2 top-2 flex h-8 min-w-8 items-center justify-center rounded-full bg-brand-600 px-2 text-sm font-bold text-white shadow">
+          <span className="absolute left-2 top-2 flex h-8 min-w-8 items-center justify-center rounded-full bg-primary px-2 text-sm font-bold text-primary-foreground shadow">
             {position}
           </span>
         </div>
 
-        <div className="flex items-center gap-2 border-t border-slate-100 p-2">
-          <label className="flex items-center gap-1 text-xs text-slate-500">
-            Ordre
-            <select
-              value={position}
-              onChange={(e) => onSetPosition(item.clientId, Number(e.target.value))}
-              className="rounded-md border border-slate-300 px-1.5 py-1 text-center text-xs text-slate-800"
-            >
+        <div className="flex items-center gap-2 border-t p-2">
+          <Select
+            value={String(position)}
+            onValueChange={(v) => onSetPosition(item.clientId, Number(v))}
+          >
+            <SelectTrigger size="sm" aria-label="Ordre de la page" className="w-16">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
               {Array.from({ length: total }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>
+                <SelectItem key={n} value={String(n)}>
                   {n}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-          </label>
+            </SelectContent>
+          </Select>
 
           <div className="ml-auto flex gap-1">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-sm"
               onClick={() => onRotate(item.clientId)}
-              title="Pivoter de 90°"
-              className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              aria-label="Pivoter de 90°"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                />
-              </svg>
-            </button>
-            <button
+              <RotateCw />
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-sm"
               onClick={() => onRemove(item.clientId)}
-              title="Retirer cette page"
-              className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600"
+              aria-label="Retirer cette page"
+              className="hover:bg-destructive/10 hover:text-destructive"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+              <X />
+            </Button>
           </div>
         </div>
 
-        <p className="truncate border-t border-slate-100 px-2 py-1 text-[11px] text-slate-400">
+        <p className="truncate border-t px-2 py-1 text-[11px] text-muted-foreground">
           {item.file.name}
         </p>
       </div>
 
-      {showLightbox && (
-        <PageLightbox
-          src={item.previewUrl}
-          rotation={item.rotation}
-          alt={item.file.name}
-          onClose={() => setShowLightbox(false)}
-        />
-      )}
+      <PageLightbox
+        src={item.previewUrl}
+        rotation={item.rotation}
+        alt={item.file.name}
+        open={showLightbox}
+        onOpenChange={setShowLightbox}
+      />
     </>
   );
 }

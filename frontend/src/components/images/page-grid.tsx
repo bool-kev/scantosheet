@@ -55,7 +55,7 @@ export function PageGrid({ items, onMove, onRotate, onRemove, onSetPosition }: P
 
   if (items.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-400">
+      <p className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">
         Aucune page pour le moment. Déposez des images ci-dessus.
       </p>
     );
@@ -86,7 +86,7 @@ export function PageGrid({ items, onMove, onRotate, onRemove, onSetPosition }: P
 
       <DragOverlay>
         {activeItem && (
-          <div className="rounded-xl border border-brand-500 bg-white shadow-lg">
+          <div className="rounded-xl border border-primary bg-card shadow-lg">
             <img
               src={activeItem.previewUrl}
               alt=""

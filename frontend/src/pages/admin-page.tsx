@@ -1,15 +1,46 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Check, Copy, Plus } from "lucide-react";
 
 import { ApiError } from "../api/client";
 import type { ApiKey, ApiKeyCreated, ApiKeyRole } from "../api/types";
 import { ApiKeyField } from "../components/api-key-field";
+import { ConfirmDialog } from "../components/confirm-dialog";
 import {
   useApiKeys,
   useCreateApiKey,
   useHealth,
   useRevokeApiKey,
 } from "../hooks/useApiKeys";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -40,43 +71,39 @@ function describeKeyError(error: ApiError): string {
 function CreatedKeyBanner({ created }: { created: ApiKeyCreated }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="mb-6 rounded-xl border border-emerald-300 bg-emerald-50 p-4">
-      <p className="font-medium text-emerald-900">
-        Clé créée pour « {created.label} »
-      </p>
-      <p className="mt-1 text-sm text-emerald-800">
-        Copiez-la maintenant : elle ne sera <strong>plus jamais affichée</strong>.
-      </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <code className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-white px-3 py-2 font-mono text-sm text-slate-800">
-          {created.key}
-        </code>
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(created.key);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
-          }}
-          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-        >
-          {copied ? "Copié !" : "Copier"}
-        </button>
-      </div>
-    </div>
+    <Card className="border-emerald-500/30 bg-emerald-500/5">
+      <CardContent>
+        <p className="font-medium text-emerald-800 dark:text-emerald-400">
+          Clé créée pour « {created.label} »
+        </p>
+        <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-400/80">
+          Copiez-la maintenant : elle ne sera <strong>plus jamais affichée</strong>.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <code className="min-w-0 flex-1 overflow-x-auto rounded-lg border bg-background px-3 py-2 font-mono text-sm">
+            {created.key}
+          </code>
+          <Button
+            onClick={() => {
+              navigator.clipboard.writeText(created.key);
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            {copied ? <Check /> : <Copy />}
+            {copied ? "Copié !" : "Copier"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-export function AdminPage() {
-  const { data: health } = useHealth();
-  const authEnabled = health?.auth_enabled ?? false;
-
-  const keys = useApiKeys();
+function CreateKeyDialog({ onCreated }: { onCreated: (key: ApiKeyCreated) => void }) {
   const createKey = useCreateApiKey();
-  const revokeKey = useRevokeApiKey();
-
+  const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [role, setRole] = useState<ApiKeyRole>("user");
-  const [created, setCreated] = useState<ApiKeyCreated | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const submit = (event: React.FormEvent) => {
@@ -90,8 +117,10 @@ export function AdminPage() {
       { label: label.trim(), role },
       {
         onSuccess: (data) => {
-          setCreated(data);
+          onCreated(data);
           setLabel("");
+          setRole("user");
+          setOpen(false);
         },
         onError: (err) =>
           setError(err instanceof ApiError ? err.message : "Échec de la création"),
@@ -99,146 +128,193 @@ export function AdminPage() {
     );
   };
 
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus /> Nouvelle clé
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <form onSubmit={submit}>
+          <DialogHeader>
+            <DialogTitle>Créer une clé API</DialogTitle>
+            <DialogDescription>
+              Une clé <code>user</code> ne voit que les documents qu'elle a envoyés ; une
+              clé <code>admin</code> voit tout et peut gérer les autres clés.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="my-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="key-label">Libellé</Label>
+              <Input
+                id="key-label"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Service Comptabilité"
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="key-role">Rôle</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as ApiKeyRole)}>
+                <SelectTrigger id="key-role" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">user — ses documents uniquement</SelectItem>
+                  <SelectItem value="admin">admin — tout + gestion des clés</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+
+          <DialogFooter>
+            <Button type="submit" disabled={createKey.isPending}>
+              {createKey.isPending ? "Création…" : "Créer la clé"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function AdminPage() {
+  const { data: health } = useHealth();
+  const authEnabled = health?.auth_enabled ?? false;
+
+  const keys = useApiKeys();
+  const revokeKey = useRevokeApiKey();
+
+  const [created, setCreated] = useState<ApiKeyCreated | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+
   const onRevoke = (key: ApiKey) => {
-    if (window.confirm(`Révoquer la clé « ${key.label} » ?`)) {
-      revokeKey.mutate(key.id, {
-        onError: (err) =>
-          setError(err instanceof ApiError ? err.message : "Échec de la révocation"),
-      });
-    }
+    revokeKey.mutate(key.id, {
+      onError: (err) =>
+        setRevokeError(err instanceof ApiError ? err.message : "Échec de la révocation"),
+    });
   };
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <Link to="/" className="text-sm text-brand-600 hover:underline">
-        ← Retour
-      </Link>
-      <h1 className="mt-1 text-3xl font-bold text-slate-900">Clés API</h1>
-      <p className="mt-1 text-slate-500">
-        Cet espace exige <strong>toujours</strong> une clé administrateur, même
-        lorsque l'import reste ouvert. Chaque clé
-        <code className="mx-1">user</code> ne voit que les documents qu'elle a envoyés.
-      </p>
+      <header className="mb-8">
+        <h1 className="text-3xl font-semibold tracking-tight">Clés API</h1>
+        <p className="mt-1 text-muted-foreground">
+          Cet espace exige <strong>toujours</strong> une clé administrateur, même lorsque
+          l'import reste ouvert. Chaque clé <code>user</code> ne voit que les documents
+          qu'elle a envoyés.
+        </p>
+      </header>
 
       {!authEnabled && (
-        <p className="mt-4 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600">
-          L'accès aux imports est <strong>ouvert</strong> (
-          <code>AUTH_ENABLED=false</code>) : l'interface fonctionne sans clé. Les
-          clés créées ici ne seront exigées sur l'API documents qu'une fois cette
-          option activée.
+        <p className="mb-6 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+          L'accès aux imports est <strong>ouvert</strong> (<code>AUTH_ENABLED=false</code>) :
+          l'interface fonctionne sans clé. Les clés créées ici ne seront exigées sur l'API
+          documents qu'une fois cette option activée.
         </p>
       )}
 
-      <section className="mt-6">
+      <section className="mb-6">
         <ApiKeyField />
       </section>
 
       {created && (
-        <div className="mt-6">
+        <section className="mb-6">
           <CreatedKeyBanner created={created} />
-        </div>
+        </section>
       )}
 
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 font-semibold text-slate-800">Créer une clé</h2>
-        <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col text-sm font-medium text-slate-600">
-            Libellé
-            <input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="Service Comptabilité"
-              className="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="flex flex-col text-sm font-medium text-slate-600">
-            Rôle
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as ApiKeyRole)}
-              className="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="user">user — ses documents uniquement</option>
-              <option value="admin">admin — tout + gestion des clés</option>
-            </select>
-          </label>
-          <button
-            type="submit"
-            disabled={createKey.isPending}
-            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40"
-          >
-            {createKey.isPending ? "Création…" : "Créer la clé"}
-          </button>
-        </form>
-        {error && (
-          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        )}
-      </section>
-
-      <section className="mt-6">
-        <h2 className="mb-3 font-semibold text-slate-800">Clés existantes</h2>
-        {keys.isLoading && <p className="text-sm text-slate-400">Chargement…</p>}
-        {keys.isError && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-            {describeKeyError(keys.error as ApiError)}
-          </p>
-        )}
-        {keys.data && keys.data.length === 0 && (
-          <p className="text-sm text-slate-400">Aucune clé pour le moment.</p>
-        )}
-        {keys.data && keys.data.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Libellé</th>
-                  <th className="px-4 py-3 font-medium">Préfixe</th>
-                  <th className="px-4 py-3 font-medium">Rôle</th>
-                  <th className="px-4 py-3 font-medium">Statut</th>
-                  <th className="px-4 py-3 font-medium">Dernier usage</th>
-                  <th className="px-4 py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {keys.data.map((key) => (
-                  <tr key={key.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-700">{key.label}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-500">
-                      sts_{key.prefix}_…
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{key.role}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          key.is_active
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {key.is_active ? "Active" : "Révoquée"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {formatDate(key.last_used_at)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {key.is_active && (
-                        <button
-                          onClick={() => onRevoke(key)}
-                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                        >
-                          Révoquer
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+      <section>
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>Clés existantes</CardTitle>
+            <CreateKeyDialog onCreated={setCreated} />
+          </CardHeader>
+          <CardContent>
+            {keys.isLoading && (
+              <div className="space-y-2">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </div>
+            )}
+            {keys.isError && (
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {describeKeyError(keys.error as ApiError)}
+              </p>
+            )}
+            {revokeError && (
+              <p className="mb-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {revokeError}
+              </p>
+            )}
+            {keys.data && keys.data.length === 0 && (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Aucune clé pour le moment.
+              </p>
+            )}
+            {keys.data && keys.data.length > 0 && (
+              <div className="overflow-hidden rounded-xl border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Libellé</TableHead>
+                      <TableHead>Préfixe</TableHead>
+                      <TableHead>Rôle</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead>Dernier usage</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {keys.data.map((key) => (
+                      <TableRow key={key.id}>
+                        <TableCell className="font-medium">{key.label}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          sts_{key.prefix}_…
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{key.role}</TableCell>
+                        <TableCell>
+                          <Badge
+                            className={
+                              key.is_active
+                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                                : "bg-muted text-muted-foreground"
+                            }
+                          >
+                            {key.is_active ? "Active" : "Révoquée"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(key.last_used_at)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {key.is_active && (
+                            <ConfirmDialog
+                              trigger={
+                                <Button variant="outline" size="sm">
+                                  Révoquer
+                                </Button>
+                              }
+                              title="Révoquer cette clé ?"
+                              description={`« ${key.label} » ne pourra plus authentifier de requêtes. Cette action est irréversible.`}
+                              confirmLabel="Révoquer"
+                              onConfirm={() => onRevoke(key)}
+                            />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </section>
     </div>
   );

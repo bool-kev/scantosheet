@@ -1,10 +1,21 @@
+import { CheckCircle2, CircleDashed, Loader2, XCircle } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { DocumentStatus } from "../api/types";
 
 const STYLES: Record<DocumentStatus, string> = {
-  queued: "bg-slate-100 text-slate-600",
-  processing: "bg-amber-100 text-amber-700",
-  done: "bg-emerald-100 text-emerald-700",
-  error: "bg-red-100 text-red-700",
+  queued: "bg-muted text-muted-foreground",
+  processing: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  done: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+  error: "bg-destructive/15 text-destructive",
+};
+
+const ICONS: Record<DocumentStatus, typeof CheckCircle2> = {
+  queued: CircleDashed,
+  processing: Loader2,
+  done: CheckCircle2,
+  error: XCircle,
 };
 
 const LABELS: Record<DocumentStatus, string> = {
@@ -15,14 +26,11 @@ const LABELS: Record<DocumentStatus, string> = {
 };
 
 export function StatusBadge({ status }: { status: DocumentStatus }) {
+  const Icon = ICONS[status];
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${STYLES[status]}`}
-    >
-      {status === "processing" && (
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
-      )}
+    <Badge className={cn(STYLES[status])}>
+      <Icon className={cn("size-3", status === "processing" && "animate-spin")} aria-hidden="true" />
       {LABELS[status]}
-    </span>
+    </Badge>
   );
 }
