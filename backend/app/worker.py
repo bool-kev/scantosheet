@@ -50,9 +50,12 @@ def process_document(document_id: int) -> None:
         document.page_count = len(page_images)
         db.commit()
 
-        # Reset any previously stored pages (e.g. on reprocessing).
-        for old in list(document.pages):
-            db.delete(old)
+        # Reset any previously stored pages (e.g. on reprocessing). Deleted via a
+        # plain query rather than `document.pages` so the relationship isn't
+        # loaded (and cached empty) before the new pages below are inserted --
+        # with expire_on_commit=False that stale empty collection would never
+        # refresh, leaving _export_result/webhook.deliver reading zero pages.
+        db.query(Page).filter(Page.document_id == document.id).delete()
         db.commit()
 
         for index, image_path in enumerate(page_images, start=1):

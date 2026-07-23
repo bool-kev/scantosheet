@@ -10,8 +10,12 @@ import type {
   UploadOptions,
 } from "./types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8082";
 const STORAGE_KEY = "scantosheet.apiKey";
+// Baked into the bundle at build time (see .env's VITE_API_KEY). Lets the app
+// authenticate as a single shared identity without a login screen. A key
+// saved via the admin page's ApiKeyField (localStorage) always overrides it.
+const BUILT_IN_API_KEY = import.meta.env.VITE_API_KEY ?? "";
 
 /** Error carrying the HTTP status and server-provided detail message. */
 export class ApiError extends Error {
@@ -42,7 +46,7 @@ export function clearApiKey(): void {
 }
 
 function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  const key = getApiKey();
+  const key = getApiKey() || BUILT_IN_API_KEY;
   return key ? { ...extra, "X-API-Key": key } : extra;
 }
 
@@ -136,7 +140,7 @@ export const api = {
 
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `${API_URL}/api/documents`);
-      const key = getApiKey();
+      const key = getApiKey() || BUILT_IN_API_KEY;
       if (key) {
         xhr.setRequestHeader("X-API-Key", key);
       }

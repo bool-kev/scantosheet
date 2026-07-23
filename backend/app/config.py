@@ -3,6 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,8 +18,8 @@ class Settings(BaseSettings):
 
     # Server
     host: str = "0.0.0.0"
-    port: int = 8000
-    cors_origins: str = "http://localhost:5173"
+    port: int = 8082
+    cors_origins: str = "http://localhost:8081,http://localhost:8000"
     # Optional regex matching additional allowed origins, for cases where an
     # explicit list is impractical (preview deployments, wildcard subdomains).
     cors_origin_regex: str | None = None
@@ -43,7 +44,7 @@ class Settings(BaseSettings):
     # Webhooks
     # Absolute base URL used to build the links sent in webhook payloads. The
     # server cannot infer how it is reached from behind a proxy.
-    public_base_url: str = "http://localhost:8000"
+    public_base_url: str = "http://localhost:8082"
     # Shared secret used to sign webhook bodies (HMAC-SHA256). Strongly
     # recommended: without it the receiver cannot authenticate the callback.
     webhook_secret: str | None = None
@@ -51,13 +52,21 @@ class Settings(BaseSettings):
     webhook_max_attempts: int = 3
 
     # Authentication
-    # When False (default) the API is open — matching the "trusted network"
-    # self-hosted assumption. Set to True to require an X-API-Key header.
-    auth_enabled: bool = False
+    # When True (default) every /api/documents call requires a valid
+    # X-API-Key header — closed by default so a guest on the network cannot
+    # create or read data. Set to False to fall back to the old "trusted
+    # network" open posture.
+    auth_enabled: bool = True
     # Bootstrap admin key. Solves the chicken-and-egg problem: it is accepted as
     # an admin credential without existing in the database, so it can be used to
     # mint the first real keys. Leave empty to rely solely on database keys.
     admin_api_key: str | None = None
+    # Plaintext key baked into the frontend bundle (same value as the
+    # frontend's build-time VITE_API_KEY — shared name so operators only set
+    # one secret). Seeded into the database as a 'user'-role key on startup,
+    # so the frontend authenticates without anyone minting it by hand via
+    # /api/admin/keys.
+    frontend_api_key: str | None = Field(default=None, validation_alias="VITE_API_KEY")
 
     @property
     def cors_origin_list(self) -> list[str]:

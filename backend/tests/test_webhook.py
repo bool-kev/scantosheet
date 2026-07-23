@@ -14,6 +14,19 @@ from app.models import DocumentStatus
 from app.services import webhook
 
 
+def _page(page_number: int = 1, **overrides):
+    """Build a stand-in for a Page ORM row."""
+    base = {
+        "page_number": page_number,
+        "text": "hello",
+        "data_json": '[[{"value": "hello", "confidence": 0.9}]]',
+        "mean_confidence": 0.9,
+        "warning": None,
+    }
+    base.update(overrides)
+    return SimpleNamespace(**base)
+
+
 def _document(status: DocumentStatus = DocumentStatus.DONE, **overrides):
     """Build a stand-in for a processed Document ORM row."""
     base = {
@@ -24,6 +37,7 @@ def _document(status: DocumentStatus = DocumentStatus.DONE, **overrides):
         "language": "fra",
         "error_message": None,
         "callback_url": "https://example.test/hook",
+        "pages": [_page(1), _page(2)],
     }
     base.update(overrides)
     return SimpleNamespace(**base)
@@ -67,6 +81,22 @@ def test_payload_for_completed_document(monkeypatch: pytest.MonkeyPatch) -> None
         "https://ocr.example.com/api/documents/7/download?fmt=xlsx"
     )
     assert payload["preview_url"] == "https://ocr.example.com/api/documents/7/preview"
+    assert payload["pages"] == [
+        {
+            "page_number": 1,
+            "text": "hello",
+            "data": [[{"value": "hello", "confidence": 0.9}]],
+            "mean_confidence": 0.9,
+            "warning": None,
+        },
+        {
+            "page_number": 2,
+            "text": "hello",
+            "data": [[{"value": "hello", "confidence": 0.9}]],
+            "mean_confidence": 0.9,
+            "warning": None,
+        },
+    ]
 
 
 def test_payload_for_failed_document() -> None:
@@ -75,8 +105,9 @@ def test_payload_for_failed_document() -> None:
     )
     assert payload["event"] == webhook.EVENT_FAILED
     assert payload["error_message"] == "boom"
-    # No result links when there is no result.
+    # No result links or page data when there is no result.
     assert "download_url" not in payload
+    assert "pages" not in payload
 
 
 # --------------------------------------------------------------------------- #

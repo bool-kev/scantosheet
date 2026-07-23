@@ -140,6 +140,47 @@ def resolve_principal(
     return Principal(label=record.label, role=record.role, api_key_id=record.id)
 
 
+def seed_frontend_key(db: Session) -> None:
+    """Ensure the frontend's shared key exists in the database as a 'user' key.
+
+    ``settings.frontend_api_key`` (env ``VITE_API_KEY``) is the plaintext key
+    baked into the frontend bundle. Rather than requiring an operator to mint
+    it by hand through ``/api/admin/keys`` before the UI can do anything,
+    the server seeds (or repairs) the matching row on every startup — this is
+    idempotent and self-healing if the key value in ``.env`` changes.
+
+    No-op when ``VITE_API_KEY`` is unset (open mode, or key managed manually).
+    """
+    plaintext = settings.frontend_api_key
+    if not plaintext:
+        return
+
+    prefix = _parse_prefix(plaintext)
+    if prefix is None:
+        log.warning("frontend_key.malformed", detail="VITE_API_KEY is not a valid sts_<prefix>_<secret> key")
+        return
+
+    key_hash = hash_key(plaintext)
+    record = db.scalar(select(ApiKey).where(ApiKey.prefix == prefix))
+    if record is None:
+        db.add(ApiKey(label="frontend", prefix=prefix, key_hash=key_hash, role=ApiKeyRole.USER))
+        db.commit()
+        log.info("frontend_key.seeded", prefix=prefix)
+        return
+
+    changed = False
+    if record.key_hash != key_hash:
+        record.key_hash = key_hash
+        changed = True
+    if not record.is_active:
+        record.is_active = True
+        record.revoked_at = None
+        changed = True
+    if changed:
+        db.commit()
+        log.info("frontend_key.updated", prefix=prefix)
+
+
 def require_admin(
     raw_key: str | None = Security(api_key_header),
     db: Session = Depends(get_db),

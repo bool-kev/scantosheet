@@ -8,10 +8,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.database import init_db
+from app.database import SessionLocal, init_db
 from app.logging_config import configure_logging, get_logger
 from app.routers import admin, documents
 from app.schemas import HealthResponse
+from app.security import seed_frontend_key
 from app.services import ocr
 
 configure_logging()
@@ -24,6 +25,11 @@ async def lifespan(app: FastAPI):
     """Initialize storage and database on startup."""
     settings.ensure_dirs()
     init_db()
+    db = SessionLocal()
+    try:
+        seed_frontend_key(db)
+    finally:
+        db.close()
     log.info("app.startup", data_dir=str(settings.data_dir))
     yield
     log.info("app.shutdown")

@@ -164,8 +164,10 @@ VITE_API_URL=http://localhost:8000
 
 ## Security Notes
 
-- No authentication by default (self-hosted, trusted network assumed)
+- Authentication is **on by default** (`AUTH_ENABLED=true`): every `/api/documents` call requires a valid `X-API-Key` header, so a guest on the network cannot create or read data. `/api/admin` (key management) is always authenticated regardless of this flag.
+- The frontend never shows a login screen: it authenticates with a `user`-role key baked into the bundle at build time (`VITE_API_KEY`, generated in advance via `/api/admin/keys` and stored in `.env`). An operator can still override it per-browser via the admin page's key field (stored in `localStorage`).
+- Non-admin keys are scoped to their own documents — cross-tenant access to another key's document returns 404 (not 403), so existence can't be probed. Admin keys see everything.
 - File type validation: check magic bytes, not just extension
 - Sanitize filenames on upload
 - Rate limit uploads: 5 per minute
-- Add optional basic auth via env variables for exposed deployments
+- Set `AUTH_ENABLED=false` only on a fully trusted, isolated network

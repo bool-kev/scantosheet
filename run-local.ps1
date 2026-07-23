@@ -84,7 +84,7 @@ if (-not (Test-Path (Join-Path $frontendDir 'node_modules'))) {
     exit 1
 }
 
-foreach ($port in 8000, 5173) {
+foreach ($port in 8081, 8082) {
     if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
         Write-Error "Port $port is already in use. Stop the process using it, then retry."
         exit 1
@@ -140,10 +140,16 @@ if ([string]::IsNullOrWhiteSpace((Get-Env 'ADMIN_API_KEY'))) {
     Write-Host "ADMIN_API_KEY: configured"
 }
 
+if ([string]::IsNullOrWhiteSpace((Get-Env 'VITE_API_KEY'))) {
+    Write-Warning "VITE_API_KEY is empty - with AUTH_ENABLED=true the frontend will get 401s. Mint a 'user' key via /api/admin/keys and set VITE_API_KEY in .env."
+} else {
+    Write-Host "VITE_API_KEY : configured"
+}
+
 # --- Launch both servers as children of this console -------------------------
 $procs = @()
 $procs += Start-Process -FilePath $python `
-    -ArgumentList '-m', 'uvicorn', 'app.main:app', '--host', '0.0.0.0', '--port', '8000', '--reload' `
+    -ArgumentList '-m', 'uvicorn', 'app.main:app', '--host', '0.0.0.0', '--port', '8082', '--reload' `
     -WorkingDirectory $backendDir -NoNewWindow -PassThru
 $procs += Start-Process -FilePath 'npm.cmd' `
     -ArgumentList 'run', 'dev' `

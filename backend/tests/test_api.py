@@ -12,14 +12,27 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
 from app.main import app
 
 
 @pytest.fixture(scope="module")
 def client() -> Iterator[TestClient]:
-    # Entering the context manager triggers the lifespan (init_db).
-    with TestClient(app) as test_client:
-        yield test_client
+    """These tests exercise business logic, not auth — run with auth disabled.
+
+    Auth itself (open vs. enabled, scoping, admin) is covered exhaustively in
+    test_auth.py. Mutated directly (not via ``monkeypatch``) because this
+    fixture is module-scoped and ``monkeypatch`` is function-scoped.
+    """
+    settings = get_settings()
+    original = settings.auth_enabled
+    settings.auth_enabled = False
+    try:
+        # Entering the context manager triggers the lifespan (init_db).
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        settings.auth_enabled = original
 
 
 def test_health(client: TestClient) -> None:

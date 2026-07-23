@@ -2,7 +2,9 @@
 
 Lets an API client skip polling: it passes a ``callback_url`` at upload time and
 receives a POST once the document is processed, carrying a direct link to the
-generated spreadsheet.
+generated spreadsheet as well as the full per-page OCR/structured data (the same
+``pages`` shape returned by ``GET /api/documents/{id}/preview``), so a receiver
+can consume the extracted data without a follow-up request.
 
 Payloads are signed with HMAC-SHA256 over ``"{timestamp}.{body}"`` so the
 receiver can authenticate the call and reject replays::
@@ -89,7 +91,19 @@ def build_payload(document: Any) -> dict[str, Any]:
             f"{base}/api/documents/{document.id}/download?fmt=csv"
         )
         payload["preview_url"] = f"{base}/api/documents/{document.id}/preview"
+        payload["pages"] = [_page_payload(p) for p in document.pages]
     return payload
+
+
+def _page_payload(page: Any) -> dict[str, Any]:
+    """Build the per-page OCR/structured-data block embedded in the webhook."""
+    return {
+        "page_number": page.page_number,
+        "text": page.text,
+        "data": json.loads(page.data_json or "[]"),
+        "mean_confidence": page.mean_confidence,
+        "warning": page.warning,
+    }
 
 
 def deliver(document: Any) -> str | None:
