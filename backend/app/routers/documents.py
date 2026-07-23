@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import uuid
 from pathlib import Path
 
@@ -37,20 +36,17 @@ from app.schemas import (
 )
 from app.security import Principal, resolve_principal
 from app.services import excel
+from app.services.files import sanitize_filename
 from app.worker import process_document
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 log = get_logger(__name__)
 settings = get_settings()
 
-_FILENAME_SAFE = re.compile(r"[^A-Za-z0-9._-]+")
-
 
 def _sanitize_filename(name: str) -> str:
-    """Return a filesystem-safe version of an uploaded filename."""
-    base = Path(name).name
-    cleaned = _FILENAME_SAFE.sub("_", base).strip("._")
-    return cleaned or "upload.pdf"
+    """Return a filesystem-safe version of an uploaded PDF filename."""
+    return sanitize_filename(name, fallback="upload.pdf")
 
 
 def _page_to_schema(page: Page) -> PageData:

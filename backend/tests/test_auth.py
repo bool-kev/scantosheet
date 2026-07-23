@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.database import SessionLocal, init_db
-from app.models import ApiKey, ApiKeyRole, Document, DocumentStatus
+from app.models import ApiKey, ApiKeyRole, Document, DocumentStatus, ImageBatch
 
 BOOTSTRAP_ADMIN = "sts_bootstrap_admin_secret"
 
@@ -247,3 +247,43 @@ def test_admin_sees_every_document(auth_client: TestClient) -> None:
     _create_key(auth_client, "UserC")
     doc_id = _seed_document(_key_id_for(auth_client, "UserC"), "c.pdf")
     assert auth_client.get(f"/api/documents/{doc_id}", headers=_admin()).status_code == 200
+
+
+def _seed_batch(api_key_id: int | None, name: str) -> int:
+    db = SessionLocal()
+    batch = ImageBatch(name=name, quality="standard", page_size="a4", api_key_id=api_key_id)
+    db.add(batch)
+    db.commit()
+    batch_id = batch.id
+    db.close()
+    return batch_id
+
+
+def test_users_only_see_their_own_image_batches(auth_client: TestClient) -> None:
+    """Image batches follow the same per-key scoping as documents."""
+    init_db()
+    key_a = _create_key(auth_client, "BatchUserA")
+    key_b = _create_key(auth_client, "BatchUserB")
+    id_a = _seed_batch(_key_id_for(auth_client, "BatchUserA"), "lot-a")
+    id_b = _seed_batch(_key_id_for(auth_client, "BatchUserB"), "lot-b")
+
+    listing_a = auth_client.get(
+        "/api/images/batches", headers={"X-API-Key": key_a}
+    ).json()
+    names_a = {item["name"] for item in listing_a}
+    assert "lot-a" in names_a
+    assert "lot-b" not in names_a
+
+    # Cross-tenant access is masked as 404, never 403.
+    assert auth_client.get(
+        f"/api/images/batches/{id_b}", headers={"X-API-Key": key_a}
+    ).status_code == 404
+    assert auth_client.get(
+        f"/api/images/batches/{id_a}", headers={"X-API-Key": key_a}
+    ).status_code == 200
+    assert auth_client.delete(
+        f"/api/images/batches/{id_b}", headers={"X-API-Key": key_a}
+    ).status_code == 404
+    assert auth_client.get(
+        f"/api/images/batches/{id_b}", headers={"X-API-Key": key_b}
+    ).status_code == 200

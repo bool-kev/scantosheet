@@ -13,12 +13,20 @@ export function HomePage() {
             Convertissez vos PDF scannés en tableaux Excel grâce à l'OCR — 100 % en local.
           </p>
         </div>
-        <Link
-          to="/admin"
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-        >
-          Clés API
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            to="/images"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Images → PDF
+          </Link>
+          <Link
+            to="/admin"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Clés API
+          </Link>
+        </div>
       </header>
 
       <section className="mb-10">

@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # OCR confidence threshold below which a cell is flagged as "low confidence"
     low_confidence_threshold: int = 70
 
+    # Images -> PDF module
+    max_image_size_mb: int = 20
+    max_batch_images: int = 200
+
     # Webhooks
     # Absolute base URL used to build the links sent in webhook payloads. The
     # server cannot infer how it is reached from behind a proxy.
@@ -79,6 +83,11 @@ class Settings(BaseSettings):
         return self.max_file_size_mb * 1024 * 1024
 
     @property
+    def max_image_size_bytes(self) -> int:
+        """Maximum per-image upload size in bytes for the Images -> PDF module."""
+        return self.max_image_size_mb * 1024 * 1024
+
+    @property
     def uploads_dir(self) -> Path:
         return self.data_dir / "uploads"
 
@@ -95,6 +104,10 @@ class Settings(BaseSettings):
         return self.data_dir / "results"
 
     @property
+    def batches_dir(self) -> Path:
+        return self.data_dir / "batches"
+
+    @property
     def db_path(self) -> Path:
         return self.data_dir / "scantosheet.db"
 
@@ -106,6 +119,7 @@ class Settings(BaseSettings):
             self.pages_dir,
             self.processed_dir,
             self.results_dir,
+            self.batches_dir,
         ):
             directory.mkdir(parents=True, exist_ok=True)
 

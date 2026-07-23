@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import SessionLocal, init_db
 from app.logging_config import configure_logging, get_logger
-from app.routers import admin, documents
+from app.routers import admin, documents, images
 from app.schemas import HealthResponse
 from app.security import seed_frontend_key
 from app.services import ocr
@@ -56,6 +56,7 @@ app.add_middleware(
 )
 
 app.include_router(documents.router)
+app.include_router(images.router)
 app.include_router(admin.router)
 
 

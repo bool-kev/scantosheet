@@ -2,10 +2,15 @@ import type {
   ApiKey,
   ApiKeyCreateRequest,
   ApiKeyCreated,
+  BatchUpdateRequest,
+  BuildPdfOptions,
   Cell,
   DocumentDetail,
+  DocumentSummary,
   DocumentList,
   HealthResponse,
+  ImageBatchDetail,
+  ImageBatchSummary,
   PreviewResponse,
   UploadOptions,
 } from "./types";
@@ -202,6 +207,180 @@ export const api = {
       `${API_URL}/api/documents/${id}/download?${params}`,
       `document_${id}.${fmt}`,
     );
+  },
+
+  // ----- Images -> PDF module ------------------------------------------------
+
+  /**
+   * Assemble uploaded images into a PDF. Resolves to either the raw PDF blob
+   * (ready to hand to the browser as a download) or, when
+   * `options.createDocument` is set, the newly queued `DocumentSummary`.
+   */
+  async buildPdf(
+    files: File[],
+    rotations: number[],
+    options: BuildPdfOptions,
+    onProgress?: (percent: number) => void,
+  ): Promise<
+    | { kind: "pdf"; blob: Blob; filename: string }
+    | { kind: "document"; document: DocumentSummary }
+  > {
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      files.forEach((file) => form.append("files", file));
+      form.append("rotations", rotations.join(","));
+      form.append("quality", options.quality);
+      form.append("page_size", options.pageSize);
+      form.append("filename", options.filename);
+      form.append("create_document", String(options.createDocument));
+      form.append("language", options.language);
+      form.append("preprocessing", String(options.preprocessing));
+      form.append("merge_pages", String(options.mergePages));
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_URL}/api/images/pdf`);
+      xhr.responseType = "blob";
+      const key = getApiKey() || BUILT_IN_API_KEY;
+      if (key) {
+        xhr.setRequestHeader("X-API-Key", key);
+      }
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          onProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+      xhr.onload = async () => {
+        const blob = xhr.response as Blob;
+        if (xhr.status < 200 || xhr.status >= 300) {
+          let detail = xhr.statusText;
+          try {
+            detail = JSON.parse(await blob.text()).detail ?? detail;
+          } catch {
+            /* keep status text */
+          }
+          reject(new ApiError(xhr.status, detail));
+          return;
+        }
+
+        const contentType = xhr.getResponseHeader("Content-Type") ?? "";
+        if (contentType.includes("application/json")) {
+          const document = JSON.parse(await blob.text()) as DocumentSummary;
+          resolve({ kind: "document", document });
+          return;
+        }
+
+        const disposition = xhr.getResponseHeader("Content-Disposition") ?? "";
+        const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+        resolve({
+          kind: "pdf",
+          blob,
+          filename: match ? decodeURIComponent(match[1]) : `${options.filename}.pdf`,
+        });
+      };
+      xhr.onerror = () => reject(new ApiError(0, "Network error"));
+      xhr.send(form);
+    });
+  },
+
+  /** Trigger a browser download for a blob obtained from `buildPdf`. */
+  downloadBlobFile(blob: Blob, filename: string): void {
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
+  /** Persist a new image batch (files, order and rotations) for later retrieval. */
+  async saveBatch(
+    files: File[],
+    rotations: number[],
+    options: { name: string; quality: string; pageSize: string },
+    onProgress?: (percent: number) => void,
+  ): Promise<ImageBatchDetail> {
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      files.forEach((file) => form.append("files", file));
+      form.append("rotations", rotations.join(","));
+      form.append("quality", options.quality);
+      form.append("page_size", options.pageSize);
+      form.append("name", options.name);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_URL}/api/images/batches`);
+      const key = getApiKey() || BUILT_IN_API_KEY;
+      if (key) {
+        xhr.setRequestHeader("X-API-Key", key);
+      }
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          onProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          let detail = xhr.statusText;
+          try {
+            detail = JSON.parse(xhr.responseText).detail ?? detail;
+          } catch {
+            /* keep status text */
+          }
+          reject(new ApiError(xhr.status, detail));
+        }
+      };
+      xhr.onerror = () => reject(new ApiError(0, "Network error"));
+      xhr.send(form);
+    });
+  },
+
+  async listBatches(): Promise<ImageBatchSummary[]> {
+    return handle(
+      await fetch(`${API_URL}/api/images/batches`, { headers: authHeaders() }),
+    );
+  },
+
+  async getBatch(id: number): Promise<ImageBatchDetail> {
+    return handle(
+      await fetch(`${API_URL}/api/images/batches/${id}`, { headers: authHeaders() }),
+    );
+  },
+
+  async updateBatch(id: number, payload: BatchUpdateRequest): Promise<ImageBatchDetail> {
+    return handle(
+      await fetch(`${API_URL}/api/images/batches/${id}`, {
+        method: "PUT",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(payload),
+      }),
+    );
+  },
+
+  async deleteBatch(id: number): Promise<void> {
+    return handle(
+      await fetch(`${API_URL}/api/images/batches/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      }),
+    );
+  },
+
+  /** Fetch one image's bytes with auth headers (a plain <img src> can't send them). */
+  async fetchBatchImageBlob(batchId: number, imageId: number): Promise<Blob> {
+    const response = await fetch(
+      `${API_URL}/api/images/batches/${batchId}/images/${imageId}`,
+      { headers: authHeaders() },
+    );
+    if (!response.ok) {
+      throw new ApiError(response.status, response.statusText);
+    }
+    return response.blob();
   },
 
   // ----- Admin: API key management -----------------------------------------

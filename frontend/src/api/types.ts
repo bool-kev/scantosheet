@@ -80,3 +80,56 @@ export interface UploadOptions {
   /** Export all pages into one sheet instead of one sheet per page. */
   mergePages: boolean;
 }
+
+// ----- Images -> PDF module ------------------------------------------------
+
+export type ImageQuality = "high" | "standard" | "compact";
+export type PageSize = "a4" | "original";
+export type PageRotation = 0 | 90 | 180 | 270;
+
+export interface BuildPdfOptions {
+  quality: ImageQuality;
+  pageSize: PageSize;
+  filename: string;
+  createDocument: boolean;
+  language: string;
+  preprocessing: boolean;
+  mergePages: boolean;
+}
+
+export interface BatchImageOut {
+  id: number;
+  position: number;
+  rotation: PageRotation;
+  filename: string;
+  width: number;
+  height: number;
+  url: string;
+}
+
+export interface ImageBatchSummary {
+  id: number;
+  name: string;
+  quality: ImageQuality;
+  page_size: PageSize;
+  image_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ImageBatchDetail extends ImageBatchSummary {
+  images: BatchImageOut[];
+}
+
+export interface BatchImageUpdate {
+  image_id: number;
+  position: number;
+  rotation: PageRotation;
+}
+
+export interface BatchUpdateRequest {
+  name?: string;
+  quality?: ImageQuality;
+  page_size?: PageSize;
+  images?: BatchImageUpdate[];
+}

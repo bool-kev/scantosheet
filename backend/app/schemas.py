@@ -82,6 +82,53 @@ class DataUpdateRequest(BaseModel):
     pages: list[PageDataUpdate]
 
 
+class BatchImageOut(BaseModel):
+    """One image within a saved batch, with its order, rotation and URL."""
+
+    id: int
+    position: int
+    rotation: int
+    filename: str
+    width: int
+    height: int
+    url: str
+
+
+class ImageBatchSummary(BaseModel):
+    """Compact saved-batch representation for list views."""
+
+    id: int
+    name: str
+    quality: str
+    page_size: str
+    image_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ImageBatchDetail(ImageBatchSummary):
+    """Full saved-batch representation including its images."""
+
+    images: list[BatchImageOut] = Field(default_factory=list)
+
+
+class BatchImageUpdate(BaseModel):
+    """New order/rotation for one existing image in a batch."""
+
+    image_id: int
+    position: int
+    rotation: int = Field(ge=0, le=270)
+
+
+class BatchUpdateRequest(BaseModel):
+    """Payload to re-synchronize an existing batch's order, rotation or options."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=256)
+    quality: str | None = None
+    page_size: str | None = None
+    images: list[BatchImageUpdate] | None = None
+
+
 class HealthResponse(BaseModel):
     """Health check payload."""
 

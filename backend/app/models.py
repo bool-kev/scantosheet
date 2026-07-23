@@ -94,6 +94,50 @@ class Document(Base):
     )
 
 
+class ImageBatch(Base):
+    """A user-organized set of images pending assembly into a PDF."""
+
+    __tablename__ = "image_batches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(256), default="Sans titre", nullable=False)
+    quality: Mapped[str] = mapped_column(String(16), default="standard", nullable=False)
+    page_size: Mapped[str] = mapped_column(String(16), default="a4", nullable=False)
+    # Owning API key. NULL for batches created while auth was disabled.
+    api_key_id: Mapped[int | None] = mapped_column(
+        ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+
+    images: Mapped[list[BatchImage]] = relationship(
+        back_populates="batch",
+        cascade="all, delete-orphan",
+        order_by="BatchImage.position",
+    )
+
+
+class BatchImage(Base):
+    """A single image within an :class:`ImageBatch`, with its order and rotation."""
+
+    __tablename__ = "batch_images"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    batch_id: Mapped[int] = mapped_column(
+        ForeignKey("image_batches.id", ondelete="CASCADE"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    rotation: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    filename: Mapped[str] = mapped_column(String(512), nullable=False)
+    stored_filename: Mapped[str] = mapped_column(String(512), nullable=False)
+    width: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    height: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    batch: Mapped[ImageBatch] = relationship(back_populates="images")
+
+
 class Page(Base):
     """OCR result and structured data for a single PDF page."""
 
