@@ -69,6 +69,56 @@ export function PreviewPage() {
     setSaved(false);
   };
 
+  const handleAddRow = (afterRow: number | null) => {
+    setPages((prev) => {
+      const next = prev.map((p) => ({ ...p, data: p.data.map((row) => [...row]) }));
+      const page = next[activePage];
+      const columnCount = Math.max(1, ...page.data.map((row) => row.length));
+      const newRow = Array.from({ length: columnCount }, () => ({ value: "", confidence: 100 }));
+      const insertAt = afterRow !== null ? Math.min(afterRow + 1, page.data.length) : page.data.length;
+      page.data.splice(insertAt, 0, newRow);
+      return next;
+    });
+    setDirty(true);
+    setSaved(false);
+  };
+
+  const handleAddColumn = (afterColumn: number | null) => {
+    setPages((prev) => {
+      const next = prev.map((p) => ({ ...p, data: p.data.map((row) => [...row]) }));
+      const page = next[activePage];
+      page.data.forEach((row) => {
+        const insertAt = afterColumn !== null ? Math.min(afterColumn + 1, row.length) : row.length;
+        row.splice(insertAt, 0, { value: "", confidence: 100 });
+      });
+      return next;
+    });
+    setDirty(true);
+    setSaved(false);
+  };
+
+  const handleDeleteRow = (rowIndex: number) => {
+    setPages((prev) => {
+      const next = prev.map((p) => ({ ...p, data: p.data.map((row) => [...row]) }));
+      next[activePage].data.splice(rowIndex, 1);
+      return next;
+    });
+    setDirty(true);
+    setSaved(false);
+  };
+
+  const handleDeleteColumn = (colIndex: number) => {
+    setPages((prev) => {
+      const next = prev.map((p) => ({ ...p, data: p.data.map((row) => [...row]) }));
+      next[activePage].data.forEach((row) => {
+        if (colIndex < row.length) row.splice(colIndex, 1);
+      });
+      return next;
+    });
+    setDirty(true);
+    setSaved(false);
+  };
+
   const handleSave = () => {
     const payload = pages.map((p) => ({
       page_number: p.page_number,
@@ -182,7 +232,14 @@ export function PreviewPage() {
                 faible confiance (&lt;70%)
               </span>
             </div>
-            <EditableTable data={current.data} onChange={handleCellChange} />
+            <EditableTable
+              data={current.data}
+              onChange={handleCellChange}
+              onAddRow={handleAddRow}
+              onAddColumn={handleAddColumn}
+              onDeleteRow={handleDeleteRow}
+              onDeleteColumn={handleDeleteColumn}
+            />
           </CardContent>
         </Card>
       )}
