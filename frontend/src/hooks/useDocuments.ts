@@ -1,13 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../api/client";
 import type { Cell, UploadOptions } from "../api/types";
 
-/** List documents. Polls while any document is still being processed. */
-export function useDocuments() {
+export const DOCUMENTS_PAGE_SIZE = 10;
+
+/** List documents for one page. Polls while any document on that page is still processing. */
+export function useDocuments(page: number, pageSize: number = DOCUMENTS_PAGE_SIZE) {
   return useQuery({
-    queryKey: ["documents"],
-    queryFn: () => api.listDocuments(1, 100),
+    queryKey: ["documents", page, pageSize],
+    queryFn: () => api.listDocuments(page, pageSize),
+    placeholderData: keepPreviousData,
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
       const active = items.some(
