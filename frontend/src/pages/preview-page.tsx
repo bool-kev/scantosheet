@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, Download, FileSpreadsheet } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, FileSpreadsheet, Undo2 } from "lucide-react";
 
 import { ApiError, api } from "../api/client";
 import type { Cell, PageData } from "../api/types";
@@ -19,16 +19,20 @@ export function PreviewPage() {
   const updateData = useUpdateData(documentId);
 
   const [pages, setPages] = useState<PageData[]>([]);
+  const [history, setHistory] = useState<PageData[][]>([]);
   const [activePage, setActivePage] = useState(0);
   const [merge, setMerge] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
+  const MAX_HISTORY = 100;
+
   // Sync local editable copy whenever the fetched document changes.
   useEffect(() => {
     if (doc?.pages) {
       setPages(doc.pages);
+      setHistory([]);
       setDirty(false);
     }
   }, [doc?.id, doc?.pages]);
@@ -39,6 +43,28 @@ export function PreviewPage() {
       setMerge(doc.merge_pages);
     }
   }, [doc?.id, doc?.merge_pages]);
+
+  // Ctrl/Cmd+S saves, Ctrl/Cmd+Z undoes. The listener is registered once
+  // (hooks must run unconditionally, before the early returns below), but
+  // reads through refs so it always calls the latest handleSave/handleUndo.
+  const handleSaveRef = useRef<() => void>(() => {});
+  const handleUndoRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+      if (key === "s") {
+        event.preventDefault();
+        handleSaveRef.current();
+      } else if (key === "z" && !event.shiftKey) {
+        event.preventDefault();
+        handleUndoRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   if (isLoading) {
     return <p className="p-10 text-center text-muted-foreground">Chargement…</p>;
@@ -54,8 +80,16 @@ export function PreviewPage() {
     );
   }
 
+  /** Applies a mutation to `pages` and records the prior state for undo. */
+  const commit = (mutate: (prev: PageData[]) => PageData[]) => {
+    setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), pages]);
+    setPages(mutate);
+    setDirty(true);
+    setSaved(false);
+  };
+
   const handleCellChange = (rowIndex: number, colIndex: number, value: string) => {
-    setPages((prev) => {
+    commit((prev) => {
       const next = prev.map((p) => ({ ...p, data: p.data.map((row) => [...row]) }));
       const page = next[activePage];
       while (page.data[rowIndex].length <= colIndex) {
@@ -65,12 +99,10 @@ export function PreviewPage() {
       page.data[rowIndex][colIndex] = { value, confidence: existing?.confidence ?? 100 };
       return next;
     });
-    setDirty(true);
-    setSaved(false);
   };
 
   const handleAddRow = (afterRow: number | null) => {
-    setPages((prev) => {
+    commit((prev) => {
       const next = prev.map((p) => ({ ...p, data: p.data.map((row) => [...row]) }));
       const page = next[activePage];
       const columnCount = Math.max(1, ...page.data.map((row) => row.length));
@@ -79,12 +111,10 @@ export function PreviewPage() {
       page.data.splice(insertAt, 0, newRow);
       return next;
     });
-    setDirty(true);
-    setSaved(false);
   };
 
   const handleAddColumn = (afterColumn: number | null) => {
-    setPages((prev) => {
+    commit((prev) => {
       const next = prev.map((p) => ({ ...p, data: p.data.map((row) => [...row]) }));
       const page = next[activePage];
       page.data.forEach((row) => {
@@ -93,33 +123,37 @@ export function PreviewPage() {
       });
       return next;
     });
-    setDirty(true);
-    setSaved(false);
   };
 
   const handleDeleteRow = (rowIndex: number) => {
-    setPages((prev) => {
+    commit((prev) => {
       const next = prev.map((p) => ({ ...p, data: p.data.map((row) => [...row]) }));
       next[activePage].data.splice(rowIndex, 1);
       return next;
     });
-    setDirty(true);
-    setSaved(false);
   };
 
   const handleDeleteColumn = (colIndex: number) => {
-    setPages((prev) => {
+    commit((prev) => {
       const next = prev.map((p) => ({ ...p, data: p.data.map((row) => [...row]) }));
       next[activePage].data.forEach((row) => {
         if (colIndex < row.length) row.splice(colIndex, 1);
       });
       return next;
     });
+  };
+
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    const previous = history[history.length - 1];
+    setPages(previous);
+    setHistory(history.slice(0, -1));
     setDirty(true);
     setSaved(false);
   };
 
   const handleSave = () => {
+    if (!dirty || updateData.isPending) return;
     const payload = pages.map((p) => ({
       page_number: p.page_number,
       data: p.data as Cell[][],
@@ -131,6 +165,9 @@ export function PreviewPage() {
       },
     });
   };
+
+  handleSaveRef.current = handleSave;
+  handleUndoRef.current = handleUndo;
 
   // Downloads go through fetch (not a plain link) so the API key header travels
   // with the request.
@@ -169,8 +206,17 @@ export function PreviewPage() {
           </label>
           <Button
             variant="outline"
+            onClick={handleUndo}
+            disabled={history.length === 0}
+            title="Annuler (Ctrl+Z)"
+          >
+            <Undo2 /> Annuler
+          </Button>
+          <Button
+            variant="outline"
             onClick={handleSave}
             disabled={!dirty || updateData.isPending}
+            title="Enregistrer (Ctrl+S)"
           >
             {updateData.isPending ? "Enregistrement…" : "Enregistrer"}
           </Button>
