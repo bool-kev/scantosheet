@@ -252,9 +252,12 @@ export function PreviewPage() {
           onValueChange={(v) => setActivePage(Number(v))}
           className="mb-4"
         >
-          <TabsList className="h-auto flex-wrap bg-transparent p-0" variant="line">
+          <TabsList
+            className="h-auto w-full justify-start overflow-x-auto bg-transparent p-0"
+            variant="line"
+          >
             {pages.map((p, index) => (
-              <TabsTrigger key={p.page_number} value={String(index)}>
+              <TabsTrigger key={p.page_number} value={String(index)} className="shrink-0">
                 Page {p.page_number}
               </TabsTrigger>
             ))}
