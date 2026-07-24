@@ -54,6 +54,30 @@ def is_available() -> bool:
         return False
 
 
+def _rebuild_text(words: list[Word]) -> str:
+    """Reconstruct page text from word geometry, grouped by OCR line/block.
+
+    Mirrors ``pytesseract.image_to_string`` closely enough for downstream use
+    (words joined by spaces within a line, lines joined by newlines, a blank
+    line between blocks) without paying for a second Tesseract pass.
+    """
+    lines: dict[tuple[int, int, int], list[str]] = {}
+    for word in words:
+        key = (word.block_num, word.par_num, word.line_num)
+        lines.setdefault(key, []).append(word.text)
+
+    parts: list[str] = []
+    prev_block: int | None = None
+    for key in sorted(lines.keys()):
+        block_num = key[0]
+        if prev_block is not None and block_num != prev_block:
+            parts.append("")
+        parts.append(" ".join(lines[key]))
+        prev_block = block_num
+
+    return "\n".join(parts) + ("\n" if parts else "")
+
+
 def run_ocr(image_path: Path, lang: str = "fra") -> OcrResult:
     """Run OCR on an image and return text plus per-word confidence data.
 
@@ -92,7 +116,7 @@ def run_ocr(image_path: Path, lang: str = "fra") -> OcrResult:
         )
         confidences.append(conf)
 
-    full_text = pytesseract.image_to_string(image, lang=lang)
+    full_text = _rebuild_text(words)
     mean_conf = sum(confidences) / len(confidences) if confidences else 0.0
 
     log.info(
