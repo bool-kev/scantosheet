@@ -55,8 +55,14 @@ def deskew(image: np.ndarray) -> np.ndarray:
         return image
 
     angle = cv2.minAreaRect(coords)[-1]
-    if angle < -45:
-        angle = 90 + angle
+    # cv2.minAreaRect's angle convention for axis-aligned boxes is not stable
+    # across OpenCV versions (e.g. it reports 90.0 on 4.10 and -90.0 on 5.0 for
+    # the identical, unrotated box). Folding into (-45, 45] via modulo works
+    # regardless of which convention is in play, instead of only correcting
+    # angles below -45.
+    angle = angle % 90
+    if angle > 45:
+        angle -= 90
     # Ignore negligible rotations to avoid unnecessary interpolation blur.
     if abs(angle) < 0.5:
         return image
