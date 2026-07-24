@@ -6,8 +6,8 @@ services:
     restart: unless-stopped
     environment:
       HOST: 0.0.0.0
-      PORT: 8000
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      PORT: 8082
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8081}
       DATA_DIR: /data
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-50}
       TESSERACT_LANG: ${TESSERACT_LANG:-fra}
@@ -20,9 +20,9 @@ services:
     volumes:
       - scantosheet-data:/data
     ports:
-      - "8000:8000"
+      - "8082:8082"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8082/api/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -32,12 +32,12 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8082}
         VITE_API_KEY: ${VITE_API_KEY:-}
     container_name: scantosheet-frontend
     restart: unless-stopped
     ports:
-      - "5173:80"
+      - "8081:80"
     depends_on:
       - backend
 
