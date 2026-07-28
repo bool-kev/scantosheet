@@ -68,6 +68,18 @@ def process_document(document_id: int) -> None:
         db.commit()
         log.info("worker.done", document_id=document_id, pages=document.page_count)
 
+        # Drop all the page images now that the document is finished. The original PDF is kept for reprocessing.
+        for image_path in page_images:
+            try:
+                image_path.unlink()
+            except Exception as exc:  # pragma: no cover - defensive
+                log.warning(
+                    "worker.page_image_delete_failed",
+                    document_id=document_id,
+                    page=image_path.name,
+                    error=str(exc),
+                )
+
         _notify(db, document)
 
     except Exception as exc:  # noqa: BLE001 - top-level pipeline guard

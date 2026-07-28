@@ -17,6 +17,9 @@ services:
       EXTRACT_TABLES_ONLY: ${EXTRACT_TABLES_ONLY:-true}
       AUTH_ENABLED: ${AUTH_ENABLED:-true}
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      WEBHOOK_TIMEOUT_SECONDS: ${WEBHOOK_TIMEOUT_SECONDS:-20}
+      WEBHOOK_MAX_ATTEMPTS: ${WEBHOOK_MAX_ATTEMPTS:-5}
     volumes:
       - scantosheet-data:/data
     ports:
