@@ -69,6 +69,22 @@ class PreviewResponse(BaseModel):
     pages: list[PageData]
 
 
+class NormalizedRowOut(BaseModel):
+    """One import-ready row."""
+
+    values: dict[str, str]
+    page: int
+    doubtful: list[str] = Field(default_factory=list)
+
+
+class NormalizedResponse(BaseModel):
+    """A document's data mapped onto the import schema."""
+
+    columns: list[str]
+    rows: list[NormalizedRowOut]
+    warnings: list[str] = Field(default_factory=list)
+
+
 class PageDataUpdate(BaseModel):
     """Corrected structured data for a single page."""
 

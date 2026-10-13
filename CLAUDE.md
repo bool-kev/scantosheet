@@ -17,12 +17,20 @@ scantosheet/
 │   │   ├── routers/
 │   │   │   └── documents.py  # /api/documents endpoints
 │   │   ├── services/
+│   │   │   ├── pipeline.py   # Per-page pipeline: prepare -> cells -> OCR -> grid
 │   │   │   ├── ocr.py        # Tesseract OCR wrapper
 │   │   │   ├── pdf.py        # PDF-to-image conversion
-│   │   │   ├── preprocess.py # Image enhancement pipeline
-│   │   │   ├── table.py      # Table detection & structuring
+│   │   │   ├── preprocess.py # Colored-ink suppression, page preparation
+│   │   │   ├── dewarp.py     # Perspective rectification from the table frame
+│   │   │   ├── cells.py      # Cell detection (merged cells included)
+│   │   │   ├── table.py      # Word-to-cell mapping & grid building
+│   │   │   ├── reread.py     # Targeted second OCR passes on weak cells
+│   │   │   ├── normalize.py  # Mapping onto the import schema
+│   │   │   ├── parsers.py    # Field parsers (date, horaire, jury, tranche)
 │   │   │   └── excel.py      # Excel/CSV export
+│   │   ├── target_schema.json # Import columns + header synonyms
 │   │   └── worker.py         # Background task processing
+│   ├── bench/                # Offline accuracy benchmark (truth/ + run_bench.py)
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── tests/
@@ -99,7 +107,8 @@ scantosheet/
 1. **SQLite over Postgres** — single-file DB, zero config, perfect for self-hosted. Sufficient for single-user/small-team use.
 2. **Tesseract over cloud OCR** — fully offline, no API keys, no data leakage. Trade-off: slightly lower accuracy on complex layouts, mitigated by preprocessing.
 3. **BackgroundTasks first, Redis later** — start simple with FastAPI's built-in BackgroundTasks. Migrate to Celery+Redis only if concurrent processing becomes a bottleneck.
-4. **Table detection via OpenCV** — detect horizontal/vertical lines to reconstruct table grid. Fallback: treat each text line as a row, split by whitespace/tabs for columns.
+4. **Table detection via OpenCV** — detect ruling lines, then read every enclosed region as one cell (merged cells included) and snap the cells onto a logical grid. Fallback: treat each text line as a row, split by whitespace/tabs for columns.
+6. **Measure before tuning** — any change to the extraction pipeline is judged with `python -m bench.run_bench --label <name>` (from `backend/`), which scores it against the hand-checked pages in `backend/bench/truth/`.
 5. **One Docker Compose file** — frontend served by nginx in prod, API behind uvicorn. Both in the same compose file.
 
 ## API Endpoints
@@ -110,6 +119,7 @@ GET    /api/documents              List all documents with status
 GET    /api/documents/{id}         Get document details + extracted data
 GET    /api/documents/{id}/download Download Excel file
 GET    /api/documents/{id}/preview  Get page-by-page preview data
+GET    /api/documents/{id}/normalized Get rows mapped onto the import schema
 PUT    /api/documents/{id}/data    Update/correct extracted cell data
 DELETE /api/documents/{id}         Delete document and associated files
 GET    /api/health                 Health check
@@ -139,10 +149,13 @@ DATA_DIR=/data
 MAX_FILE_SIZE_MB=50
 
 # OCR
-TESSERACT_LANG=fra
+TESSERACT_LANG=fra+eng
 OCR_DPI=300
 MAX_WORKERS=2
 ENABLE_PREPROCESSING=true
+OCR_PSM=11
+OCR_REREAD_CONFIDENCE=75
+TARGET_SCHEMA_PATH=          # empty = bundled app/target_schema.json
 
 # Frontend (build-time)
 VITE_API_URL=http://localhost:8000

@@ -34,6 +34,15 @@ export function useDocument(id: number | null) {
   });
 }
 
+/** Fetch the document's rows mapped onto the import schema, once it is processed. */
+export function useNormalized(id: number, enabled = true) {
+  return useQuery({
+    queryKey: ["normalized", id],
+    queryFn: () => api.getNormalized(id),
+    enabled,
+  });
+}
+
 export function useUpload() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -69,6 +78,7 @@ export function useUpdateData(id: number) {
       api.updateData(id, pages),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["document", id] });
+      queryClient.invalidateQueries({ queryKey: ["normalized", id] });
     },
   });
 }

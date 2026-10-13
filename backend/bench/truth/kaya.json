@@ -1,0 +1,310 @@
+{
+ "source": "kaya",
+ "pdf": "data/uploads/5c58fac7a6e1484b936a7b30a3106bdf_kaya.pdf",
+ "validated": false,
+ "pages": {
+  "2": [
+   [
+    "Date et Horaires de Composition",
+    "N°",
+    "Intitulés du Concours",
+    "Nombre de candidats par Concours",
+    "Nombre de salles par concours",
+    "Sous-centre (lieu) de Composition",
+    "N° Jury",
+    "Nombre de salles par Jury",
+    "Tranche de numéro récépissé de Candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "6",
+    "Attachés d'Éducation",
+    "1413",
+    "29",
+    "Lycée Municipal de Kaya (LMK)",
+    "Jury N°1",
+    "15",
+    "De Récépissé N°000023 à N°029985"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "6",
+    "Attachés d'Éducation",
+    "1413",
+    "29",
+    "Lycée Municipal de Kaya (LMK)",
+    "Jury N°2",
+    "14",
+    "De Récépissé N°029990 à N°055012"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "8",
+    "Conseillers d'Orientation Scolaire, Universitaire et Professionnelle",
+    "66",
+    "2",
+    "Lycée Provincial Moussa KARGOUGOU de Kaya (LPMKK)",
+    "Jury N°1",
+    "12",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "3",
+    "Conseillers d'Éducation",
+    "451",
+    "10",
+    "Lycée Provincial Moussa KARGOUGOU de Kaya (LPMKK)",
+    "Jury N°1",
+    "12",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "17",
+    "Assistants en Droits Humains",
+    "360",
+    "8",
+    "Lycée Provincial Moussa KARGOUGOU de Kaya (LPMKK)",
+    "Jury N°2",
+    "12",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "18",
+    "Conseillers en Droits Humains",
+    "12",
+    "1",
+    "Lycée Provincial Moussa KARGOUGOU de Kaya (LPMKK)",
+    "Jury N°2",
+    "12",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "13",
+    "Ingénieurs de Laboratoire, de l'Enseignement et de la Recherche option : Atelier",
+    "30",
+    "1",
+    "Lycée Provincial Moussa KARGOUGOU de Kaya (LPMKK)",
+    "Jury N°2",
+    "12",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "14",
+    "Ingénieurs de Laboratoire, de l'Enseignement et de la Recherche option : Laboratoire",
+    "88",
+    "2",
+    "Lycée Provincial Moussa KARGOUGOU de Kaya (LPMKK)",
+    "Jury N°2",
+    "12",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "1",
+    "Professeurs Certifiés des Collèges d'Enseignement Général et Technique option : EPS (BAC C, D)",
+    "485",
+    "10",
+    "Lycée Provincial Moussa KARGOUGOU de Kaya (LPMKK)",
+    "Jury N°3",
+    "14",
+    "Tous les candidats"
+   ]
+  ],
+  "3": [
+   [
+    "Date et Horaires de Composition",
+    "N°",
+    "Intitulés du Concours",
+    "Nombre de candidats par Concours",
+    "Nombre de salles par concours",
+    "Sous-centre (lieu) de Composition",
+    "N° Jury",
+    "Nombre de salles par Jury",
+    "Tranche de numéro récépissé de Candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "9",
+    "Techniciens Supérieurs de Laboratoire, de l'Enseignement et de la Recherche option : Atelier",
+    "40",
+    "1",
+    "Lycée Provincial Moussa KARGOUGOU de Kaya (LPMKK)",
+    "Jury N°3",
+    "",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "10",
+    "Techniciens Supérieurs de Laboratoire, de l'Enseignement et de la Recherche option : Laboratoire",
+    "129",
+    "3",
+    "Lycée Provincial Moussa KARGOUGOU de Kaya (LPMKK)",
+    "Jury N°3",
+    "",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "15",
+    "Agents Techniques en Formation Technique Professionnelle",
+    "423",
+    "9",
+    "Groupe Scolaire École Démocratique et Populaire (GS-EDP)",
+    "Jury N°1",
+    "14",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "11",
+    "Techniciens Supérieurs en Formation Technique Professionnelle",
+    "41",
+    "1",
+    "Groupe Scolaire École Démocratique et Populaire (GS-EDP)",
+    "Jury N°1",
+    "14",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "2",
+    "Professeurs Certifiés des Collèges d'Enseignement Général et Technique option : EPS (BAC C, D- issus des VDP)",
+    "3",
+    "1",
+    "Groupe Scolaire École Démocratique et Populaire (GS-EDP)",
+    "Jury N°1",
+    "14",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "4",
+    "Conseillers d'Éducation (issus des VDP)",
+    "1",
+    "1",
+    "Groupe Scolaire École Démocratique et Populaire (GS-EDP)",
+    "Jury N°1",
+    "14",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "7",
+    "Attachés d'Éducation (issus des VOVG)",
+    "1",
+    "1",
+    "Groupe Scolaire École Démocratique et Populaire (GS-EDP)",
+    "Jury N°1",
+    "14",
+    "Tous les candidats"
+   ]
+  ],
+  "4": [
+   [
+    "Date et Horaires de Composition",
+    "N°",
+    "Intitulés du Concours",
+    "Nombre de candidats par Concours",
+    "Nombre de salles par concours",
+    "Sous-centre (lieu) de Composition",
+    "N° Jury",
+    "Nombre de salles par Jury",
+    "Tranche de numéro récépissé de Candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "16",
+    "Agents Techniques en Formation Technique Professionnelle (VOVG)",
+    "1",
+    "1",
+    "Groupe Scolaire École Démocratique et Populaire (GS-EDP)",
+    "Jury N°1",
+    "",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "12",
+    "Techniciens Supérieurs en Formation Technique Professionnelle (issus des VOVG)",
+    "0",
+    "0",
+    "Groupe Scolaire École Démocratique et Populaire (GS-EDP)",
+    "Jury N°1",
+    "",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "5",
+    "Conseillers d'Éducation (issus des VOVG)",
+    "0",
+    "0",
+    "Groupe Scolaire École Démocratique et Populaire (GS-EDP)",
+    "Jury N°1",
+    "",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Matin 07h30-09h",
+    "Sous Total du 15/07/2026 (Jour 1) Matin",
+    "",
+    "3544",
+    "81",
+    "",
+    "6",
+    "81",
+    ""
+   ],
+   [
+    "15/07/2026 (Jour 1) Soir 14h-15h30",
+    "23",
+    "Professeurs Certifiés des Collèges d'Enseignement Général option : Maths/PC (BAC C, D, E)",
+    "292",
+    "6",
+    "Groupe Scolaire Ansaroudine Développement de Kaya 1 (GS ADK1)",
+    "Jury N°1",
+    "13",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Soir 14h-15h30",
+    "25",
+    "Professeurs Certifiés des Collèges d'Enseignement Général option : Maths/SVT (BAC C, D, E)",
+    "328",
+    "7",
+    "Groupe Scolaire Ansaroudine Développement de Kaya 1 (GS ADK1)",
+    "Jury N°1",
+    "13",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 (Jour 1) Soir 14h-15h30",
+    "19",
+    "Professeurs des Écoles",
+    "2034",
+    "41",
+    "Lycée Privé Bethsaleel Wendlayam (LPBW)",
+    "Jury N°1",
+    "15",
+    "De Récépissé N°000027 à N°028210"
+   ],
+   [
+    "15/07/2026 (Jour 1) Soir 14h-15h30",
+    "19",
+    "Professeurs des Écoles",
+    "2034",
+    "41",
+    "Lycée Privé Kolog Koom de Kaya (LPKK)",
+    "Jury N°2",
+    "11",
+    "De Récépissé N°028229 à N°048079"
+   ]
+  ]
+ }
+}

@@ -1,0 +1,14 @@
+{
+  "columns": ["date", "horaire", "concours", "lieu", "jury", "tranche", "tranche_debut", "tranche_fin"],
+  "headers": [
+    {"fields": ["date", "horaire"], "match": ["date et horaires de composition", "date et horaire"]},
+    {"fields": ["date"], "match": ["date", "date de composition"]},
+    {"fields": ["horaire"], "match": ["horaire", "horaires", "heure"]},
+    {"fields": ["concours"], "match": ["intitule du concours", "intitules du concours", "intitule des concours", "concours"]},
+    {"fields": ["jury", "lieu"], "match": ["jury/lieu", "lieu/jury"]},
+    {"fields": ["lieu"], "match": ["lieu de composition", "sous-centre (lieu) de composition", "centre de composition", "lieu"]},
+    {"fields": ["jury"], "match": ["n° jury", "jury", "nombre de jury", "numero de jury"]},
+    {"fields": ["tranche"], "match": ["tranche de numero recepisse de candidats", "tranches des candidats par numeros recepisses", "tranche de noms", "tranche"]},
+    {"fields": [], "match": ["n°", "nombre de candidats par concours", "nombre de salles par concours", "nombre de salles par jury", "nombre de salles"]}
+  ]
+}

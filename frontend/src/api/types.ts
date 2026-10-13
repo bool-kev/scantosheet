@@ -44,6 +44,20 @@ export interface PreviewResponse {
   pages: PageData[];
 }
 
+export interface NormalizedRow {
+  values: Record<string, string>;
+  page: number;
+  /** Names of the fields that could not be parsed and need a manual check. */
+  doubtful: string[];
+}
+
+/** A document's data mapped onto the import schema. */
+export interface NormalizedResponse {
+  columns: string[];
+  rows: NormalizedRow[];
+  warnings: string[];
+}
+
 export interface HealthResponse {
   status: string;
   tesseract_available: boolean;

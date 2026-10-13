@@ -1,15 +1,17 @@
-"""Image preprocessing pipeline to improve OCR accuracy."""
+"""Image preparation to improve table detection and OCR accuracy."""
 
 from __future__ import annotations
 
-from pathlib import Path
+from dataclasses import dataclass
 
 import cv2
 import numpy as np
 
-from app.logging_config import get_logger
+from app.services import dewarp
 
-log = get_logger(__name__)
+# How strongly a pixel's chroma lifts it toward white (see
+# ``suppress_colored_ink``): 1.5 whitens stamp ink yet keeps dark-blue print.
+_CHROMA_LIFT = 1.5
 
 
 def to_grayscale(image: np.ndarray) -> np.ndarray:
@@ -19,91 +21,54 @@ def to_grayscale(image: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 
-def denoise(image: np.ndarray) -> np.ndarray:
-    """Remove speckle noise with a median blur."""
-    return cv2.medianBlur(image, 3)
+def suppress_colored_ink(image: np.ndarray) -> np.ndarray:
+    """Convert a BGR image to grayscale while fading colored ink to white.
+
+    Stamps, pen signatures, tinted header fills and photographed backgrounds
+    (a desk, a folder) are colored, while printed text is dark and nearly
+    neutral. Each pixel's brightest channel is lifted by its chroma, so a
+    saturated pixel goes to white and a neutral one keeps its darkness. Being
+    continuous, this leaves no halo around text printed on a tinted fill.
+    """
+    if image.ndim == 2:
+        return image
+    brightest = image.max(axis=2).astype(np.int16)
+    chroma = brightest - image.min(axis=2).astype(np.int16)
+    lifted = brightest + (chroma * _CHROMA_LIFT).astype(np.int16)
+    return np.clip(lifted, 0, 255).astype(np.uint8)
 
 
-def binarize(image: np.ndarray) -> np.ndarray:
-    """Apply adaptive Gaussian thresholding to produce a black & white image."""
-    return cv2.adaptiveThreshold(
-        image,
-        255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY,
-        blockSize=31,
-        C=15,
-    )
+@dataclass
+class PreparedPage:
+    """A page in the two forms the pipeline needs.
+
+    Attributes:
+        gray: Plain grayscale, used to find ruling lines (which may themselves
+            be drawn in dark blue and must not be faded).
+        ocr: Grayscale with colored ink faded out, used for text recognition.
+    """
+
+    gray: np.ndarray
+    ocr: np.ndarray
 
 
-def deskew(image: np.ndarray) -> np.ndarray:
-    """Detect and correct the skew angle of a (grayscale) scanned image.
+def prepare_page(image: np.ndarray, enhance: bool = True) -> PreparedPage:
+    """Derive the line-detection and OCR versions of a raw page image.
 
-    Uses the minimum-area rectangle of the foreground pixels to estimate the
-    rotation angle, then rotates the image to straighten it.
+    With ``enhance``, the page is first straightened (perspective) and colored
+    ink is faded from the OCR version. Nothing is blurred or binarized:
+    Tesseract does its own thresholding, and a median blur erases decimal
+    points and thin strokes.
 
     Args:
-        image: Grayscale image.
+        image: BGR (or grayscale) page image.
+        enhance: Apply rectification and colored-ink suppression.
 
     Returns:
-        The deskewed image.
+        The prepared page.
     """
-    # Foreground pixels are dark; invert so text becomes white on black.
-    inverted = cv2.bitwise_not(image)
-    coords = cv2.findNonZero(inverted)
-    if coords is None:
-        return image
-
-    angle = cv2.minAreaRect(coords)[-1]
-    # cv2.minAreaRect's angle convention for axis-aligned boxes is not stable
-    # across OpenCV versions (e.g. it reports 90.0 on 4.10 and -90.0 on 5.0 for
-    # the identical, unrotated box). Folding into (-45, 45] via modulo works
-    # regardless of which convention is in play, instead of only correcting
-    # angles below -45.
-    angle = angle % 90
-    if angle > 45:
-        angle -= 90
-    # Ignore negligible rotations to avoid unnecessary interpolation blur.
-    if abs(angle) < 0.5:
-        return image
-
-    (h, w) = image.shape[:2]
-    center = (w // 2, h // 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
-    return cv2.warpAffine(
-        image,
-        matrix,
-        (w, h),
-        flags=cv2.INTER_CUBIC,
-        borderMode=cv2.BORDER_REPLICATE,
-    )
-
-
-def preprocess_image(input_path: Path, output_path: Path) -> Path:
-    """Run the full preprocessing pipeline on an image and save the result.
-
-    Pipeline: grayscale -> denoise -> deskew -> binarize.
-
-    Args:
-        input_path: Path to the source page image.
-        output_path: Path where the processed image is written.
-
-    Returns:
-        The output path.
-
-    Raises:
-        ValueError: If the image cannot be read.
-    """
-    image = cv2.imread(str(input_path))
-    if image is None:
-        raise ValueError(f"Unable to read image: {input_path}")
-
-    gray = to_grayscale(image)
-    gray = denoise(gray)
-    gray = deskew(gray)
-    result = binarize(gray)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(output_path), result)
-    log.info("preprocess.done", src=str(input_path), dst=str(output_path))
-    return output_path
+    if not enhance:
+        gray = to_grayscale(image)
+        return PreparedPage(gray=gray, ocr=gray)
+    straight = dewarp.rectify(image)
+    return PreparedPage(gray=to_grayscale(straight), ocr=suppress_colored_ink(straight))

@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowLeft, Download, FileSpreadsheet, Undo2 } from "luci
 import { ApiError, api } from "../api/client";
 import type { Cell, PageData } from "../api/types";
 import { EditableTable } from "../components/editable-table";
+import { ImportPreview } from "../components/import-preview";
 import { StatusBadge } from "../components/status-badge";
 import { useDocument, useUpdateData } from "../hooks/useDocuments";
 import { Button } from "@/components/ui/button";
@@ -253,7 +254,7 @@ export function PreviewPage() {
           className="mb-4"
         >
           <TabsList
-            className="h-auto w-full justify-start overflow-x-auto bg-transparent p-0"
+            className="h-auto w-full justify-start overflow-x-auto bg-transparent p-0 py-2"
             variant="line"
           >
             {pages.map((p, index) => (
@@ -292,6 +293,7 @@ export function PreviewPage() {
           </CardContent>
         </Card>
       )}
+      {doc.status === "done" && <ImportPreview documentId={doc.id} />}
     </div>
   );
 }

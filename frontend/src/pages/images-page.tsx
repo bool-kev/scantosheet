@@ -46,7 +46,7 @@ export function ImagesPage() {
           pageSize: batch.pageSize,
           filename: batch.name,
           createDocument,
-          language: "fra",
+          language: "fra+eng",
           preprocessing: true,
           mergePages: false,
         },

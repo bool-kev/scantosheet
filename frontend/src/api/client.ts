@@ -11,6 +11,7 @@ import type {
   HealthResponse,
   ImageBatchDetail,
   ImageBatchSummary,
+  NormalizedResponse,
   PreviewResponse,
   UploadOptions,
 } from "./types";
@@ -130,6 +131,13 @@ export const api = {
     );
   },
 
+  /** The document's rows mapped onto the import schema. */
+  async getNormalized(id: number): Promise<NormalizedResponse> {
+    return handle(
+      await fetch(`${API_URL}/api/documents/${id}/normalized`, { headers: authHeaders() }),
+    );
+  },
+
   async uploadDocument(
     file: File,
     options: UploadOptions,
@@ -201,8 +209,9 @@ export const api = {
     fmt: "xlsx" | "csv",
     merge = false,
     delimiter = ",",
+    layout: "source" | "import" = "source",
   ): Promise<void> {
-    const params = new URLSearchParams({ fmt, merge: String(merge), delimiter });
+    const params = new URLSearchParams({ fmt, merge: String(merge), delimiter, layout });
     return downloadBlob(
       `${API_URL}/api/documents/${id}/download?${params}`,
       `document_${id}.${fmt}`,

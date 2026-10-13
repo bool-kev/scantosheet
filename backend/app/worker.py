@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.database import SessionLocal
 from app.logging_config import get_logger
 from app.models import Document, DocumentStatus, Page
-from app.services import excel, ocr, pdf, preprocess, table, webhook
+from app.services import excel, normalize, pdf, pipeline, webhook
 
 log = get_logger(__name__)
 settings = get_settings()
@@ -113,7 +113,12 @@ def _export_result(document: Document) -> Path:
     ]
     stem = Path(document.filename).stem
     output_path = settings.results_dir / f"{document.id}_{stem}_extracted.xlsx"
-    excel.export_xlsx(grids, output_path, merge=document.merge_pages)
+    excel.export_xlsx(
+        grids,
+        output_path,
+        merge=document.merge_pages,
+        normalized=normalize.normalize_pages(grids),
+    )
     return output_path
 
 
@@ -129,14 +134,11 @@ def _process_page(document: Document, page_number: int, image_path: Path) -> Pag
     mean_conf = 0.0
 
     try:
-        ocr_input = image_path
-        if document.preprocessing:
-            processed_path = settings.processed_dir / image_path.name
-            ocr_input = preprocess.preprocess_image(image_path, processed_path)
-
-        result = ocr.run_ocr(ocr_input, lang=document.language)
-        grid = table.structure_page(
-            ocr_input, result, tables_only=settings.extract_tables_only
+        result, grid = pipeline.extract_page(
+            image_path,
+            language=document.language,
+            preprocessing=document.preprocessing,
+            tables_only=settings.extract_tables_only,
         )
 
         text = result.text

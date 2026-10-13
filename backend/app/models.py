@@ -68,7 +68,7 @@ class Document(Base):
         Enum(DocumentStatus), default=DocumentStatus.QUEUED, nullable=False
     )
     page_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    language: Mapped[str] = mapped_column(String(32), default="fra", nullable=False)
+    language: Mapped[str] = mapped_column(String(32), default="fra+eng", nullable=False)
     preprocessing: Mapped[bool] = mapped_column(default=True, nullable=False)
     # Export layout: all pages in one sheet, instead of one sheet per page.
     merge_pages: Mapped[bool] = mapped_column(default=False, nullable=False)

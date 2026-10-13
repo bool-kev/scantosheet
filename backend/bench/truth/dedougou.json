@@ -1,0 +1,237 @@
+{
+ "source": "dedougou",
+ "pdf": "data/uploads/fe31770c5ed54afe81b4e1d49c944587_file_import_2.pdf",
+ "validated": false,
+ "pages": {
+  "1": [
+   [
+    "DATE",
+    "Intitulé du concours",
+    "Nombre de Jury",
+    "Lieu de composition",
+    "Tranche de noms"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Professeurs Certifiés des Collèges d'Enseignement Général et Technique option : EPS (BAC C, D)",
+    "I",
+    "LYCEE BETHEL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Professeurs Certifiés des Collèges d'Enseignement Général et Technique option : EPS (BAC C, D)-VDP",
+    "I",
+    "LYCEE BETHEL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Techniciens Superieurs en Formation Technique Professionnelle",
+    "I",
+    "LYCEE BETHEL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Techniciens Supérieurs en Formation Technique Professionnelle (VOVG)",
+    "I",
+    "LYCEE BETHEL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Conseillers d'Education",
+    "II",
+    "LYCEE MUNICIPAL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Conseillers d'Education (VDP)",
+    "II",
+    "LYCEE MUNICIPAL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Conseillers d'Education (VOVG)",
+    "II",
+    "LYCEE MUNICIPAL",
+    "Tous les candidats"
+   ]
+  ],
+  "2": [
+   [
+    "15/07/2026 MATIN",
+    "Attachés d'Education",
+    "II",
+    "LYCEE COMMUNAL",
+    "RECEPISSE N°000015 A N°027130"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Attachés d'Education",
+    "I",
+    "LYCEE SAINT-GABRIEL",
+    "RECEPISSE N°027136 A N°045843"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Attachés d'Education",
+    "I",
+    "HANKUY",
+    "RECEPISSE N°045853 A N°054994"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Attachés d'Education (VOVG)",
+    "I",
+    "HANKUY",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Conseillers en Orientation Scolaire, Universitaire et Professionnelle",
+    "I",
+    "HANKUY",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Techniciens Superieurs de Laboratoire, de l'Enseignement et de la Recherche, option Atelier",
+    "I",
+    "HANKUY",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Techniciens Superieurs de Laboratoire, de l'Enseignement et de la Recherche, option Laboratoire",
+    "I",
+    "HANKUY",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Ingenieurs de Laboratoire de l'Enseignement et de la recherche, option atelier",
+    "I",
+    "LYCEE PROVINCIAL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Ingenieurs de Laboratoire de l'Enseignement et de la recherche, option Laboratoire",
+    "I",
+    "LYCEE PROVINCIAL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Assistants en Droits Humains",
+    "I",
+    "LYCEE PROVINCIAL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Conseillers en Droits Humains",
+    "I",
+    "LYCEE PROVINCIAL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Agents Techniques en Formation Technique Professionnelle",
+    "I",
+    "COMPLEXE SCOLAIRE PRIVE EVANGELIQUE (CSPE)",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 MATIN",
+    "Agents Techniques en Formation Technique Professionnelle (VOVG)",
+    "I",
+    "COMPLEXE SCOLAIRE PRIVE EVANGELIQUE (CSPE)",
+    "Tous les candidats"
+   ]
+  ],
+  "3": [
+   [
+    "15/07/2026 SOIR",
+    "Professeurs des Ecoles",
+    "II",
+    "LYCEE MUNICIPAL",
+    "RECEPISSE N°000050 A N°026542"
+   ],
+   [
+    "15/07/2026 SOIR",
+    "Professeurs des Ecoles",
+    "I",
+    "COMPLEXE SCOLAIRE PRIVE EVANGELIQUE (CSPE)",
+    "RECEPISSE N°026555 A N°041440"
+   ],
+   [
+    "15/07/2026 SOIR",
+    "Professeurs des Ecoles",
+    "II",
+    "LYCEE PROVINCIAL",
+    "RECEPISSE N°041468 A N°061807"
+   ],
+   [
+    "15/07/2026 SOIR",
+    "Professeurs des Ecoles",
+    "I",
+    "LYCEE SAINT-GABRIEL",
+    "RECEPISSE N°061809A N°072958"
+   ],
+   [
+    "15/07/2026 SOIR",
+    "Professeurs des Ecoles (EC)",
+    "I",
+    "LYCEE SAINT-GABRIEL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 SOIR",
+    "Professeurs des Ecoles (VDP)",
+    "I",
+    "LYCEE SAINT-GABRIEL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 SOIR",
+    "Professeurs des Ecoles (VOVG)",
+    "II",
+    "LYCEE COMMUNAL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 SOIR",
+    "Professeurs Certifiés des Collèges d'Enseignement Général option : Mathématiques/Physique-Chimie (niveau : BAC C, D, E)",
+    "II",
+    "LYCEE COMMUNAL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 SOIR",
+    "Professeurs Certifiés des Collèges d'Enseignement Général option : Maths/PC (BAC C, D, E) – VDP",
+    "II",
+    "LYCEE COMMUNAL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 SOIR",
+    "Professeurs Certifiés des Collèges d'Enseignement Général option : Maths/SVT (BAC C, D, E)",
+    "II",
+    "LYCEE COMMUNAL",
+    "Tous les candidats"
+   ],
+   [
+    "15/07/2026 SOIR",
+    "Professeurs Certifiés des Collèges d'Enseignement Général option : Maths/SVT (BAC C, D, E)-VDP",
+    "II",
+    "LYCEE COMMUNAL",
+    "Tous les candidats"
+   ]
+  ]
+ }
+}

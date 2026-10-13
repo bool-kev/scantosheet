@@ -29,7 +29,7 @@ const MAX_SIZE_MB = 50;
 
 export function UploadDropzone() {
   const upload = useUpload();
-  const [language, setLanguage] = useState("fra");
+  const [language, setLanguage] = useState("fra+eng");
   const [preprocessing, setPreprocessing] = useState(true);
   const [mergePages, setMergePages] = useState(false);
   const [progress, setProgress] = useState(0);

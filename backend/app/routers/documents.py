@@ -31,11 +31,13 @@ from app.schemas import (
     DocumentDetail,
     DocumentList,
     DocumentSummary,
+    NormalizedResponse,
+    NormalizedRowOut,
     PageData,
     PreviewResponse,
 )
 from app.security import Principal, resolve_principal
-from app.services import excel
+from app.services import excel, normalize
 from app.services.files import sanitize_filename
 from app.worker import process_document
 
@@ -66,7 +68,7 @@ def _page_to_schema(page: Page) -> PageData:
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="PDF file to process"),
-    language: str = Form("fra", description="Tesseract language, e.g. 'fra' or 'fra+eng'"),
+    language: str = Form("fra+eng", description="Tesseract language, e.g. 'fra' or 'fra+eng'"),
     preprocessing: bool = Form(True, description="Enable image preprocessing"),
     merge_pages: bool = Form(
         False,
@@ -266,10 +268,40 @@ def _document_grids(document: Document) -> list[list[list[str]]]:
     return grids
 
 
+@router.get("/{document_id}/normalized", response_model=NormalizedResponse)
+async def normalized_document(
+    document_id: int,
+    principal: Principal = Depends(resolve_principal),
+    db: Session = Depends(get_db),
+) -> NormalizedResponse:
+    """Return the document's data mapped onto the import schema.
+
+    Rows are rebuilt from the current page data, so corrections saved through
+    ``PUT /data`` are reflected. Fields that could not be parsed are listed in
+    each row's ``doubtful``.
+    """
+    document = _get_document_or_404(document_id, db, principal)
+    table = normalize.normalize_pages(_document_grids(document))
+    return NormalizedResponse(
+        columns=table.columns,
+        rows=[
+            NormalizedRowOut(values=r.values, page=r.page, doubtful=r.doubtful)
+            for r in table.rows
+        ],
+        warnings=table.warnings,
+    )
+
+
 @router.get("/{document_id}/download")
 async def download_document(
     document_id: int,
     fmt: str = Query("xlsx", pattern="^(xlsx|csv)$"),
+    layout: str = Query(
+        "source",
+        pattern="^(source|import)$",
+        description="CSV only: 'source' keeps the table as printed, 'import' "
+        "exports the rows mapped onto the import schema",
+    ),
     merge: bool | None = Query(
         None, description="Overrides the document's merge_pages setting"
     ),
@@ -277,7 +309,11 @@ async def download_document(
     principal: Principal = Depends(resolve_principal),
     db: Session = Depends(get_db),
 ):
-    """Download the extracted data as ``xlsx`` (default) or ``csv``."""
+    """Download the extracted data as ``xlsx`` (default) or ``csv``.
+
+    The ``xlsx`` opens on an ``Import`` sheet (rows mapped onto the import
+    schema) followed by the sheets faithful to the source pages.
+    """
     document = _get_document_or_404(document_id, db, principal)
     if document.status != DocumentStatus.DONE:
         raise HTTPException(status_code=409, detail="Document is not ready for download")
@@ -287,8 +323,13 @@ async def download_document(
     # Fall back to the layout chosen at upload time when not overridden.
     merge_pages = document.merge_pages if merge is None else merge
 
+    normalized = normalize.normalize_pages(grids)
+
     if fmt == "csv":
-        content = excel.export_csv(grids, delimiter=delimiter)
+        if layout == "import":
+            content = excel.export_import_csv(normalized, delimiter=delimiter)
+        else:
+            content = excel.export_csv(grids, delimiter=delimiter)
         return Response(
             content=content,
             media_type="text/csv; charset=utf-8",
@@ -298,7 +339,7 @@ async def download_document(
         )
 
     output_path = settings.results_dir / f"{document_id}_{base}_extracted.xlsx"
-    excel.export_xlsx(grids, output_path, merge=merge_pages)
+    excel.export_xlsx(grids, output_path, merge=merge_pages, normalized=normalized)
     document.result_path = str(output_path)
     db.commit()
     return FileResponse(

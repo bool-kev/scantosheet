@@ -5,12 +5,23 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import cv2
+import numpy as np
 import pytesseract
 from PIL import Image
 
 from app.logging_config import get_logger
 
 log = get_logger(__name__)
+
+# Tesseract page segmentation modes used by the pipeline.
+PSM_BLOCK = 6  # a single uniform block of text
+PSM_LINE = 7  # a single text line
+PSM_CHAR = 10  # a single character
+PSM_SPARSE = 11  # sparse text: find as much text as possible, in no order
+
+# White margin added around a region before OCR.
+_REGION_PADDING = 24
 
 
 @dataclass
@@ -78,25 +89,15 @@ def _rebuild_text(words: list[Word]) -> str:
     return "\n".join(parts) + ("\n" if parts else "")
 
 
-def run_ocr(image_path: Path, lang: str = "fra") -> OcrResult:
-    """Run OCR on an image and return text plus per-word confidence data.
+def _parse_words(data: dict[str, list], offset: int = 0) -> list[Word]:
+    """Build ``Word`` objects from Tesseract's TSV dict, skipping non-text rows.
 
     Args:
-        image_path: Path to the (preprocessed) page image.
-        lang: Tesseract language string, e.g. ``"fra"`` or ``"fra+eng"``.
-
-    Returns:
-        An ``OcrResult`` with full text, per-word data and the mean confidence.
+        data: Output of ``pytesseract.image_to_data`` as a dict.
+        offset: Value added to every word's ``left`` and ``top``.
     """
-    image = Image.open(image_path)
-    data = pytesseract.image_to_data(
-        image, lang=lang, output_type=pytesseract.Output.DICT
-    )
-
     words: list[Word] = []
-    confidences: list[float] = []
-    n = len(data["text"])
-    for i in range(n):
+    for i in range(len(data["text"])):
         text = data["text"][i].strip()
         conf = float(data["conf"][i])
         if not text or conf < 0:
@@ -105,8 +106,8 @@ def run_ocr(image_path: Path, lang: str = "fra") -> OcrResult:
             Word(
                 text=text,
                 confidence=conf,
-                left=int(data["left"][i]),
-                top=int(data["top"][i]),
+                left=int(data["left"][i]) + offset,
+                top=int(data["top"][i]) + offset,
                 width=int(data["width"][i]),
                 height=int(data["height"][i]),
                 line_num=int(data["line_num"][i]),
@@ -114,16 +115,69 @@ def run_ocr(image_path: Path, lang: str = "fra") -> OcrResult:
                 par_num=int(data["par_num"][i]),
             )
         )
-        confidences.append(conf)
+    return words
 
+
+def run_ocr(
+    image: Path | np.ndarray, lang: str = "fra", psm: int | None = None
+) -> OcrResult:
+    """Run OCR on an image and return text plus per-word confidence data.
+
+    Args:
+        image: Path to a page image, or an already-loaded grayscale/RGB array.
+        lang: Tesseract language string, e.g. ``"fra"`` or ``"fra+eng"``.
+        psm: Tesseract page segmentation mode; ``None`` keeps its default.
+
+    Returns:
+        An ``OcrResult`` with full text, per-word data and the mean confidence.
+    """
+    source = Image.open(image) if isinstance(image, Path) else image
+    config = f"--psm {psm}" if psm is not None else ""
+    data = pytesseract.image_to_data(
+        source, lang=lang, config=config, output_type=pytesseract.Output.DICT
+    )
+
+    words = _parse_words(data)
     full_text = _rebuild_text(words)
-    mean_conf = sum(confidences) / len(confidences) if confidences else 0.0
+    mean_conf = sum(w.confidence for w in words) / len(words) if words else 0.0
 
     log.info(
         "ocr.done",
-        image=str(image_path),
         lang=lang,
+        psm=psm,
         words=len(words),
         mean_confidence=round(mean_conf, 1),
     )
     return OcrResult(text=full_text, words=words, mean_confidence=mean_conf)
+
+
+def read_region(
+    image: np.ndarray, lang: str = "fra", psm: int = PSM_BLOCK, digits_only: bool = False
+) -> list[Word]:
+    """OCR one small region (typically a table cell) on its own.
+
+    Read alone, a cell is not disturbed by its neighbours: Tesseract's page
+    layout analysis routinely skips short isolated cells such as ``6`` or
+    ``II``. The crop is padded with white, since text touching the image edge
+    is recognised poorly.
+
+    Args:
+        image: Grayscale crop of the region.
+        lang: Tesseract language string.
+        psm: Page segmentation mode (block of text by default).
+        digits_only: Restrict recognition to the digits 0-9.
+
+    Returns:
+        The recognised words, positioned relative to the crop's top-left.
+    """
+    # Stretch the crop to full contrast: pale gray print on white is otherwise
+    # thresholded away.
+    stretched = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)
+    padded = np.pad(stretched, _REGION_PADDING, mode="constant", constant_values=255)
+    config = f"--psm {psm}"
+    if digits_only:
+        config += " -c tessedit_char_whitelist=0123456789"
+    data = pytesseract.image_to_data(
+        padded, lang=lang, config=config, output_type=pytesseract.Output.DICT
+    )
+    return _parse_words(data, offset=-_REGION_PADDING)

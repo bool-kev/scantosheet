@@ -12,6 +12,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from app.logging_config import get_logger
+from app.services.normalize import NormalizedTable
 
 log = get_logger(__name__)
 
@@ -28,6 +29,9 @@ _CELL_BORDER = Border(
 _HEADER_FILL = PatternFill("solid", fgColor="E5E7EB")
 _HEADER_ALIGN = Alignment(horizontal="center", vertical="center", wrap_text=True)
 _CELL_ALIGN = Alignment(vertical="top", wrap_text=True)
+# Fields of the Import sheet that could not be parsed and need a human look.
+_DOUBTFUL_FILL = PatternFill("solid", fgColor="FDE68A")
+IMPORT_SHEET = "Import"
 
 
 def _autosize_columns(worksheet: Worksheet, grid: PageGrid) -> None:
@@ -73,11 +77,31 @@ def _write_grid(worksheet: Worksheet, grid: PageGrid, bold_header: bool) -> None
     _autosize_columns(worksheet, grid)
 
 
+def _import_grid(normalized: NormalizedTable) -> PageGrid:
+    """Return a normalized table as a grid: a header row, then one row per entry."""
+    rows = [
+        [row.values.get(column, "") for column in normalized.columns]
+        for row in normalized.rows
+    ]
+    return [list(normalized.columns), *rows]
+
+
+def _write_import_sheet(worksheet: Worksheet, normalized: NormalizedTable) -> None:
+    """Write the import-ready rows, highlighting the fields left doubtful."""
+    _write_grid(worksheet, _import_grid(normalized), bold_header=True)
+    for r, row in enumerate(normalized.rows, start=2):
+        for name in row.doubtful:
+            if name in normalized.columns:
+                column = normalized.columns.index(name) + 1
+                worksheet.cell(row=r, column=column).fill = _DOUBTFUL_FILL
+
+
 def export_xlsx(
     pages: list[PageGrid],
     output_path: Path,
     merge: bool = False,
     bold_header: bool = True,
+    normalized: NormalizedTable | None = None,
 ) -> Path:
     """Generate an ``.xlsx`` file from structured page grids.
 
@@ -87,12 +111,17 @@ def export_xlsx(
         merge: If True, all pages are written into a single sheet; otherwise one
             sheet per page.
         bold_header: Bold the first row of each grid.
+        normalized: Import-ready rows; when it has any, they are written to a
+            leading ``Import`` sheet, before the sheets faithful to the source.
 
     Returns:
         The output path.
     """
     workbook = Workbook()
     workbook.remove(workbook.active)  # drop the default empty sheet
+
+    if normalized is not None and normalized.rows:
+        _write_import_sheet(workbook.create_sheet(title=IMPORT_SHEET), normalized)
 
     if merge:
         worksheet = workbook.create_sheet(title="Extraction")
@@ -112,6 +141,11 @@ def export_xlsx(
     workbook.save(output_path)
     log.info("excel.export", path=str(output_path), pages=len(pages), merge=merge)
     return output_path
+
+
+def export_import_csv(normalized: NormalizedTable, delimiter: str = ",") -> bytes:
+    """Generate CSV bytes (UTF-8 with BOM) of the import-ready rows."""
+    return export_csv([_import_grid(normalized)], delimiter=delimiter)
 
 
 def export_csv(pages: list[PageGrid], delimiter: str = ",") -> bytes:

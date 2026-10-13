@@ -29,14 +29,26 @@ class Settings(BaseSettings):
     max_file_size_mb: int = 50
 
     # OCR
-    tesseract_lang: str = "fra"
+    tesseract_lang: str = "fra+eng"
     ocr_dpi: int = 300
     max_workers: int = 2
     enable_preprocessing: bool = True
+    # Tesseract page segmentation mode for the page-wide pass. 11 ("sparse
+    # text") suits tables: it looks for text everywhere instead of assuming
+    # paragraphs, so short isolated cells are not skipped.
+    ocr_psm: int = 11
+    # Table cells left empty by the page-wide pass, or read below this mean
+    # confidence, are re-read on their own.
+    ocr_reread_confidence: int = 75
 
     # When True, only data inside detected table grids is extracted; text before
     # and after tables (titles, headers, footers, paragraphs) is ignored.
     extract_tables_only: bool = True
+
+    # Import schema (output columns + header synonyms) used to build the
+    # normalized "Import" sheet. None = the schema bundled with the app
+    # (app/target_schema.json).
+    target_schema_path: Path | None = None
 
     # OCR confidence threshold below which a cell is flagged as "low confidence"
     low_confidence_threshold: int = 70
