@@ -25,7 +25,7 @@ const LANGUAGES = [
   { value: "fra+eng", label: "Français + Anglais" },
 ];
 
-const MAX_SIZE_MB = 50;
+const MAX_SIZE_MB = 100;
 
 export function UploadDropzone() {
   const upload = useUpload();

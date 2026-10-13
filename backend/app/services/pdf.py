@@ -71,6 +71,7 @@ def pdf_to_images(pdf_path: Path, output_dir: Path, dpi: int = 300) -> list[Path
         page_path = output_dir / f"{stem}_page_{index:03d}.png"
         image.save(page_path, "PNG")
         paths.append(page_path)
+        log.info("pdf_to_images.page.done", page=index, path=str(page_path))
 
     log.info("pdf_to_images.done", pages=len(paths))
     return paths
